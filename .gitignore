@@ -1,0 +1,14 @@
+# Binaries
+/docker-tui
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+
+# Editor / tooling
+.idea/
+.vscode/
+.DS_Store
+.claude/
+.omc/
