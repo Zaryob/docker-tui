@@ -8,7 +8,10 @@ import (
 	"fmt"
 	"os"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/zaryob/docker-tui/internal/docker"
+	"github.com/zaryob/docker-tui/internal/ui"
 )
 
 func main() {
@@ -20,14 +23,10 @@ func main() {
 
 func run() error {
 	client := docker.NewClient("")
-	ctx := context.Background()
-	if err := client.Ping(ctx); err != nil {
+	if err := client.Ping(context.Background()); err != nil {
 		return fmt.Errorf("cannot reach docker daemon: %w", err)
 	}
-	v, err := client.ServerVersion(ctx)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("connected to docker %s (api %s, %s/%s)\n", v.Version, v.APIVersion, v.Os, v.Arch)
-	return nil
+	p := tea.NewProgram(ui.New(client), tea.WithAltScreen())
+	_, err := p.Run()
+	return err
 }
