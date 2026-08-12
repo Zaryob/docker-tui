@@ -21,6 +21,7 @@ type App struct {
 	client     *docker.Client
 	version    docker.Version
 	containers []docker.Container
+	table      *Table
 	err        error
 	width      int
 	height     int
@@ -28,7 +29,16 @@ type App struct {
 
 // New creates the root model.
 func New(client *docker.Client) *App {
-	return &App{client: client}
+	return &App{
+		client: client,
+		table: NewTable(
+			Column{Title: "CONTAINER ID", Width: 12},
+			Column{Title: "NAME"},
+			Column{Title: "IMAGE"},
+			Column{Title: "STATE", Width: 10},
+			Column{Title: "STATUS", Width: 24},
+		),
+	}
 }
 
 type versionMsg struct {
@@ -65,6 +75,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.width, a.height = msg.Width, msg.Height
+		a.table.SetSize(a.width, a.height-4)
 	case versionMsg:
 		a.version = msg.version
 		if msg.err != nil {
@@ -72,12 +83,25 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case containersMsg:
 		a.containers, a.err = msg.items, msg.err
+		a.table.SetRows(containerRows(a.containers))
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return a, tea.Quit
 		case "r":
 			return a, a.loadContainers
+		case "up", "k":
+			a.table.Move(-1)
+		case "down", "j":
+			a.table.Move(1)
+		case "pgup":
+			a.table.Move(-a.table.PageSize())
+		case "pgdown":
+			a.table.Move(a.table.PageSize())
+		case "home", "g":
+			a.table.Top()
+		case "end", "G":
+			a.table.Bottom()
 		}
 	}
 	return a, nil
@@ -97,10 +121,8 @@ func (a *App) header() string {
 func (a *App) View() string {
 	var b strings.Builder
 	b.WriteString(a.header())
-	b.WriteString("\n\n")
-	for _, c := range a.containers {
-		fmt.Fprintf(&b, "%-12.12s  %-30s  %-10s  %s\n", c.ID, c.Name(), c.State, c.Image)
-	}
+	b.WriteString("\n")
+	b.WriteString(a.table.View())
 	b.WriteString("\n")
 	if a.err != nil {
 		b.WriteString(errorStyle.Render("error: " + a.err.Error()))
@@ -110,4 +132,16 @@ func (a *App) View() string {
 	b.WriteString("\n")
 	b.WriteString(statusStyle.Render("r: refresh  q: quit"))
 	return b.String()
+}
+
+func containerRows(items []docker.Container) [][]string {
+	rows := make([][]string, len(items))
+	for i, c := range items {
+		id := c.ID
+		if len(id) > 12 {
+			id = id[:12]
+		}
+		rows[i] = []string{id, c.Name(), c.Image, c.State, c.Status}
+	}
+	return rows
 }
