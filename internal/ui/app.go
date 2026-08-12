@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -22,6 +24,7 @@ type App struct {
 	version    docker.Version
 	containers []docker.Container
 	table      *Table
+	help       help.Model
 	err        error
 	width      int
 	height     int
@@ -31,6 +34,7 @@ type App struct {
 func New(client *docker.Client) *App {
 	return &App{
 		client: client,
+		help:   help.New(),
 		table: NewTable(
 			Column{Title: "CONTAINER ID", Width: 12},
 			Column{Title: "NAME"},
@@ -75,7 +79,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.width, a.height = msg.Width, msg.Height
-		a.table.SetSize(a.width, a.height-4)
+		a.help.Width = msg.Width
+		a.layout()
 	case versionMsg:
 		a.version = msg.version
 		if msg.err != nil {
@@ -85,26 +90,36 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.containers, a.err = msg.items, msg.err
 		a.table.SetRows(containerRows(a.containers))
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c":
+		switch {
+		case key.Matches(msg, keys.Quit):
 			return a, tea.Quit
-		case "r":
+		case key.Matches(msg, keys.Help):
+			a.help.ShowAll = !a.help.ShowAll
+			a.layout()
+		case key.Matches(msg, keys.Refresh):
 			return a, a.loadContainers
-		case "up", "k":
+		case key.Matches(msg, keys.Up):
 			a.table.Move(-1)
-		case "down", "j":
+		case key.Matches(msg, keys.Down):
 			a.table.Move(1)
-		case "pgup":
+		case key.Matches(msg, keys.PageUp):
 			a.table.Move(-a.table.PageSize())
-		case "pgdown":
+		case key.Matches(msg, keys.PageDown):
 			a.table.Move(a.table.PageSize())
-		case "home", "g":
+		case key.Matches(msg, keys.Top):
 			a.table.Top()
-		case "end", "G":
+		case key.Matches(msg, keys.Bottom):
 			a.table.Bottom()
 		}
 	}
 	return a, nil
+}
+
+// layout recomputes the size of the main table from the window size.
+func (a *App) layout() {
+	helpHeight := lipgloss.Height(a.help.View(keys))
+	// header + status line + help
+	a.table.SetSize(a.width, a.height-2-helpHeight)
 }
 
 func (a *App) header() string {
@@ -130,7 +145,7 @@ func (a *App) View() string {
 		b.WriteString(statusStyle.Render(fmt.Sprintf("%d containers", len(a.containers))))
 	}
 	b.WriteString("\n")
-	b.WriteString(statusStyle.Render("r: refresh  q: quit"))
+	b.WriteString(a.help.View(keys))
 	return b.String()
 }
 
