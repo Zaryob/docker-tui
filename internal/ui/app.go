@@ -12,6 +12,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -25,6 +26,11 @@ type App struct {
 	containers []docker.Container
 	table      *Table
 	help       help.Model
+	spinner    spinner.Model
+	busy       int
+	status     string
+	statusErr  bool
+	statusSeq  int
 	err        error
 	width      int
 	height     int
@@ -35,6 +41,10 @@ func New(client *docker.Client) *App {
 	return &App{
 		client: client,
 		help:   help.New(),
+		spinner: spinner.New(
+			spinner.WithSpinner(spinner.MiniDot),
+			spinner.WithStyle(lipgloss.NewStyle().Foreground(colorAccent)),
+		),
 		table: NewTable(
 			Column{Title: "CONTAINER ID", Width: 12},
 			Column{Title: "NAME"},
@@ -43,6 +53,18 @@ func New(client *docker.Client) *App {
 			Column{Title: "STATUS", Width: 24},
 		),
 	}
+}
+
+const statusTimeout = 4 * time.Second
+
+type clearStatusMsg struct{ seq int }
+
+// setStatus shows a transient message in the status line.
+func (a *App) setStatus(text string, isErr bool) tea.Cmd {
+	a.statusSeq++
+	a.status, a.statusErr = text, isErr
+	seq := a.statusSeq
+	return tea.Tick(statusTimeout, func(time.Time) tea.Msg { return clearStatusMsg{seq: seq} })
 }
 
 type actionMsg struct {
@@ -59,6 +81,7 @@ func (a *App) containerAction(verb string, fn actionFunc) tea.Cmd {
 	if !ok {
 		return nil
 	}
+	a.busy++
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -103,7 +126,7 @@ func (a *App) loadContainers() tea.Msg {
 
 // Init implements tea.Model.
 func (a *App) Init() tea.Cmd {
-	return tea.Batch(a.loadVersion, a.loadContainers)
+	return tea.Batch(a.loadVersion, a.loadContainers, a.spinner.Tick)
 }
 
 // Update implements tea.Model.
@@ -122,8 +145,19 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.containers, a.err = msg.items, msg.err
 		a.table.SetRows(containerRows(a.containers))
 	case actionMsg:
-		a.err = msg.err
-		return a, a.loadContainers
+		a.busy--
+		if msg.err != nil {
+			return a, a.setStatus(msg.err.Error(), true)
+		}
+		return a, tea.Batch(a.setStatus(msg.status, false), a.loadContainers)
+	case clearStatusMsg:
+		if msg.seq == a.statusSeq {
+			a.status = ""
+		}
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		a.spinner, cmd = a.spinner.Update(msg)
+		return a, cmd
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, keys.Quit):
@@ -180,14 +214,27 @@ func (a *App) View() string {
 	b.WriteString("\n")
 	b.WriteString(a.table.View())
 	b.WriteString("\n")
-	if a.err != nil {
-		b.WriteString(errorStyle.Render("error: " + a.err.Error()))
-	} else {
-		b.WriteString(statusStyle.Render(fmt.Sprintf("%d containers", len(a.containers))))
-	}
+	b.WriteString(a.statusLine())
 	b.WriteString("\n")
 	b.WriteString(a.help.View(keys))
 	return b.String()
+}
+
+func (a *App) statusLine() string {
+	prefix := ""
+	if a.busy > 0 {
+		prefix = a.spinner.View() + " "
+	}
+	switch {
+	case a.status != "" && a.statusErr:
+		return prefix + errorStyle.Render(a.status)
+	case a.status != "":
+		return prefix + okStyle.Render(a.status)
+	case a.err != nil:
+		return prefix + errorStyle.Render("error: "+a.err.Error())
+	default:
+		return prefix + statusStyle.Render(fmt.Sprintf("%d containers", len(a.containers)))
+	}
 }
 
 func containerRows(items []docker.Container) [][]string {
