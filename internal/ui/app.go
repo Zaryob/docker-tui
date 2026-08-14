@@ -45,6 +45,38 @@ func New(client *docker.Client) *App {
 	}
 }
 
+type actionMsg struct {
+	status string
+	err    error
+}
+
+type actionFunc func(ctx context.Context, id string) error
+
+// containerAction runs fn against the selected container and reports the
+// outcome as an actionMsg.
+func (a *App) containerAction(verb string, fn actionFunc) tea.Cmd {
+	c, ok := a.selectedContainer()
+	if !ok {
+		return nil
+	}
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := fn(ctx, c.ID); err != nil {
+			return actionMsg{err: fmt.Errorf("%s %s: %w", verb, c.Name(), err)}
+		}
+		return actionMsg{status: fmt.Sprintf("%s %s", verb, c.Name())}
+	}
+}
+
+func (a *App) selectedContainer() (docker.Container, bool) {
+	i := a.table.Cursor()
+	if i < 0 || i >= len(a.containers) {
+		return docker.Container{}, false
+	}
+	return a.containers[i], true
+}
+
 type versionMsg struct {
 	version docker.Version
 	err     error
@@ -89,6 +121,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case containersMsg:
 		a.containers, a.err = msg.items, msg.err
 		a.table.SetRows(containerRows(a.containers))
+	case actionMsg:
+		a.err = msg.err
+		return a, a.loadContainers
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, keys.Quit):
@@ -98,6 +133,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.layout()
 		case key.Matches(msg, keys.Refresh):
 			return a, a.loadContainers
+		case key.Matches(msg, keys.Start):
+			return a, a.containerAction("started", a.client.StartContainer)
+		case key.Matches(msg, keys.Stop):
+			return a, a.containerAction("stopped", a.client.StopContainer)
+		case key.Matches(msg, keys.Restart):
+			return a, a.containerAction("restarted", a.client.RestartContainer)
 		case key.Matches(msg, keys.Up):
 			a.table.Move(-1)
 		case key.Matches(msg, keys.Down):

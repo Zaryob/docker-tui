@@ -49,3 +49,23 @@ func (c *Client) ListContainers(ctx context.Context, all bool) ([]Container, err
 	err := c.getJSON(ctx, "/containers/json", q, &out)
 	return out, err
 }
+
+func (c *Client) containerAction(ctx context.Context, id, action string, q url.Values) error {
+	return c.post(ctx, "/containers/"+url.PathEscape(id)+"/"+action, q)
+}
+
+// StartContainer starts a stopped container.
+func (c *Client) StartContainer(ctx context.Context, id string) error {
+	return c.containerAction(ctx, id, "start", nil)
+}
+
+// StopContainer stops a running container, killing it after the daemon's
+// default grace period.
+func (c *Client) StopContainer(ctx context.Context, id string) error {
+	return c.containerAction(ctx, id, "stop", nil)
+}
+
+// RestartContainer restarts a container.
+func (c *Client) RestartContainer(ctx context.Context, id string) error {
+	return c.containerAction(ctx, id, "restart", nil)
+}
