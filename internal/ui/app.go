@@ -17,6 +17,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/zaryob/docker-tui/internal/docker"
+	"github.com/zaryob/docker-tui/internal/format"
 )
 
 // App is the root Bubble Tea model.
@@ -240,11 +241,7 @@ func (a *App) statusLine() string {
 func containerRows(items []docker.Container) [][]string {
 	rows := make([][]string, len(items))
 	for i, c := range items {
-		id := c.ID
-		if len(id) > 12 {
-			id = id[:12]
-		}
-		rows[i] = []string{id, c.Name(), c.Image, c.State, c.Status}
+		rows[i] = []string{format.ShortID(c.ID), c.Name(), c.Image, c.State, c.Status}
 	}
 	return rows
 }
