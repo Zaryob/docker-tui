@@ -45,6 +45,7 @@ func New(client *docker.Client) *App {
 		tabs: []*tab{
 			newContainersTab(),
 			newImagesTab(),
+			newVolumesTab(),
 		},
 		help: help.New(),
 		spinner: spinner.New(
@@ -115,6 +116,8 @@ func (a *App) load(kind tabKind) tea.Cmd {
 		return a.loadContainers
 	case tabImages:
 		return a.loadImages
+	case tabVolumes:
+		return a.loadVolumes
 	}
 	return nil
 }

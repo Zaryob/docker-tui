@@ -8,6 +8,7 @@ type tabKind int
 const (
 	tabContainers tabKind = iota
 	tabImages
+	tabVolumes
 )
 
 // item is a single row of a resource tab.
