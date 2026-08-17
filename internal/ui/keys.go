@@ -12,6 +12,9 @@ type keyMap struct {
 	PageDown key.Binding
 	Top      key.Binding
 	Bottom   key.Binding
+	NextTab  key.Binding
+	PrevTab  key.Binding
+	JumpTab  key.Binding
 	Refresh  key.Binding
 	Start    key.Binding
 	Stop     key.Binding
@@ -27,6 +30,9 @@ var keys = keyMap{
 	PageDown: key.NewBinding(key.WithKeys("pgdown", "ctrl+f"), key.WithHelp("pgdn", "page down")),
 	Top:      key.NewBinding(key.WithKeys("home", "g"), key.WithHelp("g", "top")),
 	Bottom:   key.NewBinding(key.WithKeys("end", "G"), key.WithHelp("G", "bottom")),
+	NextTab:  key.NewBinding(key.WithKeys("tab", "right", "l"), key.WithHelp("tab", "next tab")),
+	PrevTab:  key.NewBinding(key.WithKeys("shift+tab", "left", "h"), key.WithHelp("shift+tab", "prev tab")),
+	JumpTab:  key.NewBinding(key.WithKeys("1", "2", "3", "4"), key.WithHelp("1-4", "jump to tab")),
 	Refresh:  key.NewBinding(key.WithKeys("r", "ctrl+r"), key.WithHelp("r", "refresh")),
 	Start:    key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start")),
 	Stop:     key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "stop")),
@@ -37,7 +43,7 @@ var keys = keyMap{
 
 // ShortHelp implements help.KeyMap.
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Start, k.Stop, k.Restart, k.Help, k.Quit}
+	return []key.Binding{k.NextTab, k.Up, k.Down, k.Start, k.Stop, k.Restart, k.Help, k.Quit}
 }
 
 // FullHelp implements help.KeyMap.
@@ -45,6 +51,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.Top, k.Bottom},
 		{k.Start, k.Stop, k.Restart},
+		{k.NextTab, k.PrevTab, k.JumpTab},
 		{k.Refresh, k.Help, k.Quit},
 	}
 }

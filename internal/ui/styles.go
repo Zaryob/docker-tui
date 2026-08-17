@@ -19,6 +19,9 @@ var (
 			Background(colorAccent).
 			Padding(0, 1)
 
+	tabStyle       = lipgloss.NewStyle().Foreground(colorMuted).Padding(0, 1)
+	activeTabStyle = lipgloss.NewStyle().Foreground(colorAccent).Bold(true).Underline(true).Padding(0, 1)
+
 	headerInfoStyle = lipgloss.NewStyle().Foreground(colorMuted).PaddingLeft(1)
 
 	statusStyle = lipgloss.NewStyle().Foreground(colorMuted)
