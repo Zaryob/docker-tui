@@ -9,6 +9,7 @@ const (
 	tabContainers tabKind = iota
 	tabImages
 	tabVolumes
+	tabNetworks
 )
 
 // item is a single row of a resource tab.
