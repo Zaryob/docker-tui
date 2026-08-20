@@ -330,6 +330,14 @@ func (a *App) statusLine() string {
 	case !t.loaded:
 		return prefix + statusStyle.Render("loading "+t.noun+"…")
 	default:
-		return prefix + statusStyle.Render(fmt.Sprintf("%d %s", len(t.items), t.noun))
+		return prefix + statusStyle.Render(countNoun(len(t.items), t.noun))
 	}
+}
+
+// countNoun formats a count with a plural noun, singularizing it for one.
+func countNoun(n int, plural string) string {
+	if n == 1 {
+		return "1 " + strings.TrimSuffix(plural, "s")
+	}
+	return fmt.Sprintf("%d %s", n, plural)
 }
