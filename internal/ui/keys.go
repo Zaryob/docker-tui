@@ -19,6 +19,7 @@ type keyMap struct {
 	Start    key.Binding
 	Stop     key.Binding
 	Restart  key.Binding
+	Remove   key.Binding
 	Help     key.Binding
 	Quit     key.Binding
 }
@@ -37,20 +38,21 @@ var keys = keyMap{
 	Start:    key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start")),
 	Stop:     key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "stop")),
 	Restart:  key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "restart")),
+	Remove:   key.NewBinding(key.WithKeys("d", "delete"), key.WithHelp("d", "remove")),
 	Help:     key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
 	Quit:     key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
 }
 
 // ShortHelp implements help.KeyMap.
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.NextTab, k.Up, k.Down, k.Start, k.Stop, k.Restart, k.Help, k.Quit}
+	return []key.Binding{k.NextTab, k.Up, k.Down, k.Start, k.Stop, k.Restart, k.Remove, k.Help, k.Quit}
 }
 
 // FullHelp implements help.KeyMap.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.Top, k.Bottom},
-		{k.Start, k.Stop, k.Restart},
+		{k.Start, k.Stop, k.Restart, k.Remove},
 		{k.NextTab, k.PrevTab, k.JumpTab},
 		{k.Refresh, k.Help, k.Quit},
 	}

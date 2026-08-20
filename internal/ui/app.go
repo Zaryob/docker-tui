@@ -27,6 +27,8 @@ type App struct {
 	tabs   []*tab
 	active int
 
+	confirm *confirmDialog
+
 	help      help.Model
 	spinner   spinner.Model
 	busy      int
@@ -108,6 +110,42 @@ func (a *App) objectAction(verb string, fn actionFunc) tea.Cmd {
 	}
 }
 
+// removeDialog builds the confirmation dialog for removing the selected
+// object of the active tab.
+func (a *App) removeDialog() *confirmDialog {
+	t := a.current()
+	it, ok := t.selected()
+	if !ok {
+		return nil
+	}
+	remove := func(force bool) func() tea.Cmd {
+		return func() tea.Cmd {
+			return a.objectAction("removed", func(ctx context.Context, id string) error {
+				switch t.kind {
+				case tabContainers:
+					return a.client.RemoveContainer(ctx, id, force)
+				case tabImages:
+					return a.client.RemoveImage(ctx, id, force)
+				case tabVolumes:
+					return a.client.RemoveVolume(ctx, id, force)
+				case tabNetworks:
+					return a.client.RemoveNetwork(ctx, id)
+				}
+				return nil
+			})
+		}
+	}
+	d := &confirmDialog{
+		title:   "Remove " + strings.TrimSuffix(t.noun, "s") + "?",
+		message: it.name,
+		onYes:   remove(false),
+	}
+	if t.kind != tabNetworks {
+		d.onForce = remove(true)
+	}
+	return d
+}
+
 func (a *App) current() *tab { return a.tabs[a.active] }
 
 // load returns a command that reloads the given tab.
@@ -180,6 +218,14 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
+	if a.confirm != nil {
+		cmd, done := a.confirm.handleKey(msg)
+		if done {
+			a.confirm = nil
+		}
+		return cmd
+	}
+
 	t := a.current()
 	switch {
 	case key.Matches(msg, keys.Quit):
@@ -207,6 +253,8 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		t.table.Top()
 	case key.Matches(msg, keys.Bottom):
 		t.table.Bottom()
+	case key.Matches(msg, keys.Remove):
+		a.confirm = a.removeDialog()
 	default:
 		if t.kind == tabContainers {
 			return a.containerKeys(msg)
@@ -254,7 +302,11 @@ func (a *App) View() string {
 	var b strings.Builder
 	b.WriteString(a.header())
 	b.WriteString("\n")
-	b.WriteString(a.current().table.View())
+	if a.confirm != nil {
+		b.WriteString(a.confirm.view(a.width, a.current().table.height))
+	} else {
+		b.WriteString(a.current().table.View())
+	}
 	b.WriteString("\n")
 	b.WriteString(a.statusLine())
 	b.WriteString("\n")

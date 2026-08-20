@@ -69,3 +69,13 @@ func (c *Client) StopContainer(ctx context.Context, id string) error {
 func (c *Client) RestartContainer(ctx context.Context, id string) error {
 	return c.containerAction(ctx, id, "restart", nil)
 }
+
+// RemoveContainer removes a container. With force, a running container is
+// killed first.
+func (c *Client) RemoveContainer(ctx context.Context, id string, force bool) error {
+	q := url.Values{}
+	if force {
+		q.Set("force", "1")
+	}
+	return c.delete(ctx, "/containers/"+url.PathEscape(id), q)
+}
