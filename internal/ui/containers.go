@@ -46,6 +46,8 @@ func containerItems(list []docker.Container) []item {
 
 func (a *App) containerKeys(msg tea.KeyMsg) tea.Cmd {
 	switch {
+	case key.Matches(msg, keys.Logs):
+		return a.openLogs()
 	case key.Matches(msg, keys.Start):
 		return a.objectAction("started", a.client.StartContainer)
 	case key.Matches(msg, keys.Stop):

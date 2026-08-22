@@ -28,6 +28,7 @@ type App struct {
 	active int
 
 	confirm *confirmDialog
+	logs    *logView
 
 	help      help.Model
 	spinner   spinner.Model
@@ -211,6 +212,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		a.spinner, cmd = a.spinner.Update(msg)
 		return a, cmd
+	case logsMsg:
+		if a.logs != nil {
+			return a, a.logs.update(msg)
+		}
 	case tea.KeyMsg:
 		return a, a.handleKey(msg)
 	}
@@ -224,6 +229,17 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 			a.confirm = nil
 		}
 		return cmd
+	}
+	if a.logs != nil {
+		switch {
+		case key.Matches(msg, keys.Back):
+			a.logs = nil
+			a.layout()
+			return nil
+		case msg.String() == "ctrl+c":
+			return tea.Quit
+		}
+		return a.logs.update(msg)
 	}
 
 	t := a.current()
@@ -263,13 +279,30 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-// layout recomputes the size of the tables from the window size.
-func (a *App) layout() {
-	helpHeight := lipgloss.Height(a.help.View(keys))
+// helpKeys returns the key map for the current screen.
+func (a *App) helpKeys() help.KeyMap {
+	if a.logs != nil {
+		return logKeyMap{}
+	}
+	return keys
+}
+
+// bodyHeight returns the height available between the header and the
+// status line.
+func (a *App) bodyHeight() int {
+	helpHeight := lipgloss.Height(a.help.View(a.helpKeys()))
 	// header + status line + help
-	h := a.height - 2 - helpHeight
+	return max(a.height-2-helpHeight, 1)
+}
+
+// layout recomputes the size of the panes from the window size.
+func (a *App) layout() {
+	h := a.bodyHeight()
 	for _, t := range a.tabs {
 		t.table.SetSize(a.width, h)
+	}
+	if a.logs != nil {
+		a.logs.setSize(a.width, h)
 	}
 }
 
@@ -302,15 +335,18 @@ func (a *App) View() string {
 	var b strings.Builder
 	b.WriteString(a.header())
 	b.WriteString("\n")
-	if a.confirm != nil {
-		b.WriteString(a.confirm.view(a.width, a.current().table.height))
-	} else {
+	switch {
+	case a.confirm != nil:
+		b.WriteString(a.confirm.view(a.width, a.bodyHeight()))
+	case a.logs != nil:
+		b.WriteString(a.logs.view())
+	default:
 		b.WriteString(a.current().table.View())
 	}
 	b.WriteString("\n")
 	b.WriteString(a.statusLine())
 	b.WriteString("\n")
-	b.WriteString(a.help.View(keys))
+	b.WriteString(a.help.View(a.helpKeys()))
 	return b.String()
 }
 
