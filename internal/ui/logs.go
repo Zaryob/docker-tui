@@ -154,12 +154,16 @@ func (l *logView) update(msg tea.Msg) tea.Cmd {
 			l.err = msg.err
 		}
 		if len(msg.lines) > 0 {
+			// Only stick to the bottom if the user has not scrolled up.
+			atBottom := l.vp.AtBottom() || len(l.lines) == 0
 			l.lines = append(l.lines, msg.lines...)
 			if over := len(l.lines) - logMaxLines; over > 0 {
 				l.lines = l.lines[over:]
 			}
 			l.vp.SetContent(strings.Join(l.lines, "\n"))
-			l.vp.GotoBottom()
+			if atBottom {
+				l.vp.GotoBottom()
+			}
 		}
 		if msg.done {
 			l.done = true
