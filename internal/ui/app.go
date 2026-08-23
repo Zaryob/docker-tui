@@ -212,7 +212,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		a.spinner, cmd = a.spinner.Update(msg)
 		return a, cmd
-	case logsMsg:
+	case logChunkMsg:
 		if a.logs != nil {
 			return a, a.logs.update(msg)
 		}
@@ -233,10 +233,12 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	if a.logs != nil {
 		switch {
 		case key.Matches(msg, keys.Back):
+			a.logs.close()
 			a.logs = nil
 			a.layout()
 			return nil
 		case msg.String() == "ctrl+c":
+			a.logs.close()
 			return tea.Quit
 		}
 		return a.logs.update(msg)
