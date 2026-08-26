@@ -28,7 +28,8 @@ type App struct {
 	active int
 
 	confirm *confirmDialog
-	logs    *logView
+	// pane, when set, replaces the resource table (logs, inspect, ...).
+	pane pane
 
 	help      help.Model
 	spinner   spinner.Model
@@ -212,9 +213,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		a.spinner, cmd = a.spinner.Update(msg)
 		return a, cmd
-	case logChunkMsg:
-		if a.logs != nil {
-			return a, a.logs.update(msg)
+	case logChunkMsg, inspectMsg:
+		if a.pane != nil {
+			return a, a.pane.update(msg)
 		}
 	case tea.KeyMsg:
 		return a, a.handleKey(msg)
@@ -230,18 +231,18 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		}
 		return cmd
 	}
-	if a.logs != nil {
+	if a.pane != nil {
 		switch {
 		case key.Matches(msg, keys.Back):
-			a.logs.close()
-			a.logs = nil
+			a.pane.close()
+			a.pane = nil
 			a.layout()
 			return nil
 		case msg.String() == "ctrl+c":
-			a.logs.close()
+			a.pane.close()
 			return tea.Quit
 		}
-		return a.logs.update(msg)
+		return a.pane.update(msg)
 	}
 
 	t := a.current()
@@ -273,6 +274,8 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		t.table.Bottom()
 	case key.Matches(msg, keys.Remove):
 		a.confirm = a.removeDialog()
+	case key.Matches(msg, keys.Inspect):
+		return a.openInspect()
 	default:
 		if t.kind == tabContainers {
 			return a.containerKeys(msg)
@@ -281,10 +284,18 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
+// pane is a full-size view shown instead of the resource table.
+type pane interface {
+	update(tea.Msg) tea.Cmd
+	view() string
+	setSize(width, height int)
+	close()
+}
+
 // helpKeys returns the key map for the current screen.
 func (a *App) helpKeys() help.KeyMap {
-	if a.logs != nil {
-		return logKeyMap{}
+	if a.pane != nil {
+		return paneKeyMap{}
 	}
 	return keys
 }
@@ -303,8 +314,8 @@ func (a *App) layout() {
 	for _, t := range a.tabs {
 		t.table.SetSize(a.width, h)
 	}
-	if a.logs != nil {
-		a.logs.setSize(a.width, h)
+	if a.pane != nil {
+		a.pane.setSize(a.width, h)
 	}
 }
 
@@ -340,8 +351,8 @@ func (a *App) View() string {
 	switch {
 	case a.confirm != nil:
 		b.WriteString(a.confirm.view(a.width, a.bodyHeight()))
-	case a.logs != nil:
-		b.WriteString(a.logs.view())
+	case a.pane != nil:
+		b.WriteString(a.pane.view())
 	default:
 		b.WriteString(a.current().table.View())
 	}

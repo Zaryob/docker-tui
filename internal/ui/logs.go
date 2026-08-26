@@ -70,8 +70,9 @@ func (a *App) openLogs() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	a.logs = newLogView(it.name, a.width, a.bodyHeight())
-	return a.logs.start(a.client, it.id)
+	l := newLogView(it.name, a.width, a.bodyHeight())
+	a.pane = l
+	return l.start(a.client, it.id)
 }
 
 // start begins following the logs of the container in the background.

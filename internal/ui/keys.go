@@ -21,6 +21,7 @@ type keyMap struct {
 	Restart  key.Binding
 	Remove   key.Binding
 	Logs     key.Binding
+	Inspect  key.Binding
 	Back     key.Binding
 	Help     key.Binding
 	Quit     key.Binding
@@ -42,6 +43,7 @@ var keys = keyMap{
 	Restart:  key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "restart")),
 	Remove:   key.NewBinding(key.WithKeys("d", "delete"), key.WithHelp("d", "remove")),
 	Logs:     key.NewBinding(key.WithKeys("enter", "L"), key.WithHelp("enter", "logs")),
+	Inspect:  key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "inspect")),
 	Back:     key.NewBinding(key.WithKeys("esc", "q"), key.WithHelp("esc", "back")),
 	Help:     key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
 	Quit:     key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
@@ -49,24 +51,24 @@ var keys = keyMap{
 
 // ShortHelp implements help.KeyMap.
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.NextTab, k.Up, k.Down, k.Logs, k.Start, k.Stop, k.Restart, k.Remove, k.Help, k.Quit}
+	return []key.Binding{k.NextTab, k.Up, k.Down, k.Logs, k.Inspect, k.Start, k.Stop, k.Restart, k.Remove, k.Help, k.Quit}
 }
 
 // FullHelp implements help.KeyMap.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.Top, k.Bottom},
-		{k.Logs, k.Start, k.Stop, k.Restart, k.Remove},
+		{k.Logs, k.Inspect, k.Start, k.Stop, k.Restart, k.Remove},
 		{k.NextTab, k.PrevTab, k.JumpTab},
 		{k.Refresh, k.Help, k.Quit},
 	}
 }
 
-// logKeys is the key map shown while viewing logs.
-type logKeyMap struct{}
+// paneKeyMap is the key map shown while a pane (logs, inspect) is open.
+type paneKeyMap struct{}
 
-func (logKeyMap) ShortHelp() []key.Binding {
+func (paneKeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{keys.Up, keys.Down, keys.PageUp, keys.PageDown, keys.Top, keys.Bottom, keys.Back}
 }
 
-func (k logKeyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
+func (k paneKeyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
