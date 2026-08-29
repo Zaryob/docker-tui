@@ -27,7 +27,7 @@ func newContainersTab() *tab {
 func (a *App) loadContainers() tea.Msg {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	list, err := a.client.ListContainers(ctx, true)
+	list, err := a.client.ListContainers(ctx, !a.onlyRunning)
 	return listMsg{kind: tabContainers, items: containerItems(list), err: err}
 }
 
@@ -46,6 +46,12 @@ func containerItems(list []docker.Container) []item {
 
 func (a *App) containerKeys(msg tea.KeyMsg) tea.Cmd {
 	switch {
+	case key.Matches(msg, keys.ToggleAll):
+		a.onlyRunning = !a.onlyRunning
+		if a.onlyRunning {
+			return tea.Batch(a.setStatus("showing running containers", false), a.loadContainers)
+		}
+		return tea.Batch(a.setStatus("showing all containers", false), a.loadContainers)
 	case key.Matches(msg, keys.Logs):
 		return a.openLogs()
 	case key.Matches(msg, keys.Start):

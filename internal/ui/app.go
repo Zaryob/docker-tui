@@ -27,6 +27,8 @@ type App struct {
 
 	tabs   []*tab
 	active int
+	// onlyRunning hides stopped containers, like "docker ps" without -a.
+	onlyRunning bool
 
 	confirm *confirmDialog
 	// filtering is true while the filter input has focus.

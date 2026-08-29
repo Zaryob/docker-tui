@@ -18,6 +18,7 @@ type keyMap struct {
 	Refresh     key.Binding
 	Filter      key.Binding
 	ClearFilter key.Binding
+	ToggleAll   key.Binding
 	Start       key.Binding
 	Stop        key.Binding
 	Restart     key.Binding
@@ -42,6 +43,7 @@ var keys = keyMap{
 	Refresh:     key.NewBinding(key.WithKeys("r", "ctrl+r"), key.WithHelp("r", "refresh")),
 	Filter:      key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")),
 	ClearFilter: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "clear filter")),
+	ToggleAll:   key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "toggle stopped")),
 	Start:       key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start")),
 	Stop:        key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "stop")),
 	Restart:     key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "restart")),
@@ -62,7 +64,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.Top, k.Bottom},
-		{k.Logs, k.Inspect, k.Start, k.Stop, k.Restart, k.Remove},
+		{k.ToggleAll, k.Logs, k.Inspect, k.Start, k.Stop, k.Restart, k.Remove},
 		{k.NextTab, k.PrevTab, k.JumpTab},
 		{k.Filter, k.ClearFilter, k.Refresh, k.Help, k.Quit},
 	}
