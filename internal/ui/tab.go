@@ -3,6 +3,8 @@
 
 package ui
 
+import "strings"
+
 type tabKind int
 
 const (
@@ -33,7 +35,9 @@ type tab struct {
 	title   string
 	noun    string
 	table   *Table
-	items   []item
+	all     []item // every item as loaded
+	items   []item // items matching the filter, as shown in the table
+	filter  string
 	loaded  bool
 	loadErr error
 }
@@ -42,12 +46,44 @@ func newTab(kind tabKind, title, noun string, columns ...Column) *tab {
 	return &tab{kind: kind, title: title, noun: noun, table: NewTable(columns...)}
 }
 
-// setItems replaces the items of the tab, trying to keep the cursor on the
-// previously selected object.
+// setItems replaces the items of the tab.
 func (t *tab) setItems(items []item) {
-	prev, hadPrev := t.selected()
-	t.items = items
+	t.all = items
 	t.loaded = true
+	t.refresh()
+}
+
+// setFilter changes the filter and updates the visible rows.
+func (t *tab) setFilter(filter string) {
+	t.filter = filter
+	t.refresh()
+}
+
+// matches reports whether any cell of it contains the filter, ignoring case.
+func (it item) matches(filter string) bool {
+	if filter == "" {
+		return true
+	}
+	filter = strings.ToLower(filter)
+	for _, c := range it.cells {
+		if strings.Contains(strings.ToLower(c), filter) {
+			return true
+		}
+	}
+	return false
+}
+
+// refresh rebuilds the table rows from the items and the filter, trying to
+// keep the cursor on the previously selected object.
+func (t *tab) refresh() {
+	prev, hadPrev := t.selected()
+	items := make([]item, 0, len(t.all))
+	for _, it := range t.all {
+		if it.matches(t.filter) {
+			items = append(items, it)
+		}
+	}
+	t.items = items
 	rows := make([][]string, len(items))
 	for i, it := range items {
 		rows[i] = it.cells

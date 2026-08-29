@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -28,6 +29,9 @@ type App struct {
 	active int
 
 	confirm *confirmDialog
+	// filtering is true while the filter input has focus.
+	filtering bool
+	filter    textinput.Model
 	// pane, when set, replaces the resource table (logs, inspect, ...).
 	pane pane
 
@@ -44,7 +48,12 @@ type App struct {
 
 // New creates the root model.
 func New(client *docker.Client) *App {
+	fi := textinput.New()
+	fi.Prompt = "/"
+	fi.Placeholder = "filter"
+	fi.PromptStyle = lipgloss.NewStyle().Foreground(colorAccent)
 	return &App{
+		filter: fi,
 		client: client,
 		tabs: []*tab{
 			newContainersTab(),
@@ -170,6 +179,32 @@ func (a *App) Init() tea.Cmd {
 	return tea.Batch(a.loadVersion, a.load(tabContainers), a.spinner.Tick)
 }
 
+func (a *App) handleFilterKey(msg tea.KeyMsg) tea.Cmd {
+	t := a.current()
+	switch msg.String() {
+	case "esc":
+		a.filtering = false
+		a.filter.Blur()
+		t.setFilter("")
+		return nil
+	case "enter":
+		a.filtering = false
+		a.filter.Blur()
+		return nil
+	case "up", "down":
+		if msg.String() == "up" {
+			t.table.Move(-1)
+		} else {
+			t.table.Move(1)
+		}
+		return nil
+	}
+	var cmd tea.Cmd
+	a.filter, cmd = a.filter.Update(msg)
+	t.setFilter(a.filter.Value())
+	return cmd
+}
+
 func (a *App) switchTab(i int) tea.Cmd {
 	if i < 0 || i >= len(a.tabs) || i == a.active {
 		return nil
@@ -231,6 +266,9 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		}
 		return cmd
 	}
+	if a.filtering {
+		return a.handleFilterKey(msg)
+	}
 	if a.pane != nil {
 		switch {
 		case key.Matches(msg, keys.Back):
@@ -247,6 +285,13 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 
 	t := a.current()
 	switch {
+	case key.Matches(msg, keys.ClearFilter) && t.filter != "":
+		t.setFilter("")
+	case key.Matches(msg, keys.Filter):
+		a.filtering = true
+		a.filter.SetValue(t.filter)
+		a.filter.CursorEnd()
+		return a.filter.Focus()
 	case key.Matches(msg, keys.Quit):
 		return tea.Quit
 	case key.Matches(msg, keys.Help):
@@ -365,6 +410,9 @@ func (a *App) View() string {
 
 func (a *App) statusLine() string {
 	t := a.current()
+	if a.filtering {
+		return a.filter.View()
+	}
 	prefix := ""
 	if a.busy > 0 {
 		prefix = a.spinner.View() + " "
@@ -379,7 +427,11 @@ func (a *App) statusLine() string {
 	case !t.loaded:
 		return prefix + statusStyle.Render("loading "+t.noun+"…")
 	default:
-		return prefix + statusStyle.Render(countNoun(len(t.items), t.noun))
+		text := countNoun(len(t.all), t.noun)
+		if t.filter != "" {
+			text = fmt.Sprintf("%d of %s matching %q", len(t.items), text, t.filter)
+		}
+		return prefix + statusStyle.Render(text)
 	}
 }
 
