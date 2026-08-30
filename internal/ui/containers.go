@@ -60,6 +60,15 @@ func (a *App) containerKeys(msg tea.KeyMsg) tea.Cmd {
 		return a.objectAction("stopped", a.client.StopContainer)
 	case key.Matches(msg, keys.Restart):
 		return a.objectAction("restarted", a.client.RestartContainer)
+	case key.Matches(msg, keys.Pause):
+		it, ok := a.current().selected()
+		if !ok {
+			return nil
+		}
+		if it.data.(docker.Container).State == "paused" {
+			return a.objectAction("unpaused", a.client.UnpauseContainer)
+		}
+		return a.objectAction("paused", a.client.PauseContainer)
 	}
 	return nil
 }

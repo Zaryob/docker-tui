@@ -79,3 +79,13 @@ func (c *Client) RemoveContainer(ctx context.Context, id string, force bool) err
 	}
 	return c.delete(ctx, "/containers/"+url.PathEscape(id), q)
 }
+
+// PauseContainer suspends all processes in a container.
+func (c *Client) PauseContainer(ctx context.Context, id string) error {
+	return c.containerAction(ctx, id, "pause", nil)
+}
+
+// UnpauseContainer resumes a paused container.
+func (c *Client) UnpauseContainer(ctx context.Context, id string) error {
+	return c.containerAction(ctx, id, "unpause", nil)
+}
