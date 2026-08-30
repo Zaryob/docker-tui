@@ -71,7 +71,16 @@ func New(client *docker.Client) *App {
 	}
 }
 
-const statusTimeout = 4 * time.Second
+const (
+	statusTimeout   = 4 * time.Second
+	refreshInterval = 3 * time.Second
+)
+
+type refreshTickMsg struct{}
+
+func refreshTick() tea.Cmd {
+	return tea.Tick(refreshInterval, func(time.Time) tea.Msg { return refreshTickMsg{} })
+}
 
 type clearStatusMsg struct{ seq int }
 
@@ -178,7 +187,7 @@ func (a *App) load(kind tabKind) tea.Cmd {
 
 // Init implements tea.Model.
 func (a *App) Init() tea.Cmd {
-	return tea.Batch(a.loadVersion, a.load(tabContainers), a.spinner.Tick)
+	return tea.Batch(a.loadVersion, a.load(tabContainers), a.spinner.Tick, refreshTick())
 }
 
 func (a *App) handleFilterKey(msg tea.KeyMsg) tea.Cmd {
@@ -242,6 +251,13 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, a.setStatus(msg.err.Error(), true)
 		}
 		return a, tea.Batch(a.setStatus(msg.status, false), a.load(msg.kind))
+	case refreshTickMsg:
+		// Only refresh the list that is visible; panes and dialogs keep
+		// their own state.
+		if a.pane == nil && a.confirm == nil {
+			return a, tea.Batch(a.load(a.current().kind), refreshTick())
+		}
+		return a, refreshTick()
 	case clearStatusMsg:
 		if msg.seq == a.statusSeq {
 			a.status = ""
