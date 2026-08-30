@@ -42,7 +42,7 @@ func Ago(t, now time.Time) string {
 	}
 	switch {
 	case d < time.Minute:
-		return "less than a minute ago"
+		return "just now"
 	case d < time.Hour:
 		return plural(int(d/time.Minute), "minute") + " ago"
 	case d < 48*time.Hour:

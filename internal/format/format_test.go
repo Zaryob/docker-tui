@@ -34,7 +34,7 @@ func TestAgo(t *testing.T) {
 		d    time.Duration
 		want string
 	}{
-		{10 * time.Second, "less than a minute ago"},
+		{10 * time.Second, "just now"},
 		{time.Minute, "a minute ago"},
 		{5 * time.Minute, "5 minutes ago"},
 		{time.Hour, "an hour ago"},
@@ -43,7 +43,7 @@ func TestAgo(t *testing.T) {
 		{21 * 24 * time.Hour, "3 weeks ago"},
 		{90 * 24 * time.Hour, "3 months ago"},
 		{800 * 24 * time.Hour, "2 years ago"},
-		{-time.Hour, "less than a minute ago"},
+		{-time.Hour, "just now"},
 	}
 	for _, tt := range tests {
 		if got := Ago(now.Add(-tt.d), now); got != tt.want {
