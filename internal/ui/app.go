@@ -266,7 +266,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		a.spinner, cmd = a.spinner.Update(msg)
 		return a, cmd
-	case logChunkMsg, inspectMsg:
+	case logChunkMsg, inspectMsg, statsMsg, statsTickMsg:
 		if a.pane != nil {
 			return a, a.pane.update(msg)
 		}
