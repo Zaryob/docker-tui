@@ -5,6 +5,7 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -35,6 +36,8 @@ func (a *App) execShell() tea.Cmd {
 		return a.setStatus("docker CLI not found in PATH; it is required for exec", true)
 	}
 	cmd := exec.Command(bin, "exec", "-it", it.id, "sh", "-c", shellScript)
+	// Make the CLI talk to the same daemon as we do.
+	cmd.Env = append(os.Environ(), "DOCKER_HOST="+a.client.Host())
 	name := it.name
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		return execDoneMsg{name: name, err: err}

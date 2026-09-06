@@ -22,11 +22,14 @@ func main() {
 }
 
 func run() error {
-	client := docker.NewClient("")
+	client, err := docker.NewClient("")
+	if err != nil {
+		return err
+	}
 	if err := client.Ping(context.Background()); err != nil {
-		return fmt.Errorf("cannot reach docker daemon: %w", err)
+		return fmt.Errorf("cannot reach docker daemon at %s: %w", client.Host(), err)
 	}
 	p := tea.NewProgram(ui.New(client), tea.WithAltScreen())
-	_, err := p.Run()
+	_, err = p.Run()
 	return err
 }

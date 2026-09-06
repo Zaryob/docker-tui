@@ -16,36 +16,66 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
 
-// DefaultSocket is the default location of the Docker daemon socket.
-const DefaultSocket = "/var/run/docker.sock"
+// DefaultHost is the address used when neither an explicit host nor the
+// DOCKER_HOST environment variable is set.
+const DefaultHost = "unix:///var/run/docker.sock"
 
 // Client is a minimal Docker Engine API client.
 type Client struct {
 	http *http.Client
 	base string
+	host string
 }
 
-// NewClient returns a client connected to the daemon listening on the given
-// unix socket path.
-func NewClient(socket string) *Client {
-	if socket == "" {
-		socket = DefaultSocket
+// NewClient returns a client for the daemon at host, which is either a
+// "unix://" socket path or a "tcp://" address. An empty host falls back to
+// the DOCKER_HOST environment variable and then to DefaultHost.
+func NewClient(host string) (*Client, error) {
+	if host == "" {
+		host = os.Getenv("DOCKER_HOST")
 	}
-	transport := &http.Transport{
-		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+	if host == "" {
+		host = DefaultHost
+	}
+	u, err := url.Parse(host)
+	if err != nil {
+		return nil, fmt.Errorf("invalid docker host %q: %w", host, err)
+	}
+
+	transport := &http.Transport{}
+	base := "http://docker"
+	switch u.Scheme {
+	case "unix":
+		socket := u.Path
+		if socket == "" {
+			return nil, fmt.Errorf("invalid docker host %q: missing socket path", host)
+		}
+		transport.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
 			var d net.Dialer
 			return d.DialContext(ctx, "unix", socket)
-		},
+		}
+	case "tcp", "http":
+		if u.Host == "" {
+			return nil, fmt.Errorf("invalid docker host %q: missing address", host)
+		}
+		base = "http://" + u.Host
+	default:
+		return nil, fmt.Errorf("unsupported docker host %q: only unix:// and tcp:// are supported", host)
 	}
 	return &Client{
 		http: &http.Client{Transport: transport},
-		base: "http://docker",
-	}
+		base: base,
+		host: host,
+	}, nil
 }
+
+// Host returns the daemon address the client connects to.
+func (c *Client) Host() string { return c.host }
 
 // APIError is returned when the daemon answers with a non-2xx status.
 type APIError struct {
