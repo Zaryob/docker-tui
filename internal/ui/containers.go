@@ -54,6 +54,8 @@ func (a *App) containerKeys(msg tea.KeyMsg) tea.Cmd {
 		return tea.Batch(a.setStatus("showing all containers", false), a.loadContainers)
 	case key.Matches(msg, keys.Logs):
 		return a.openLogs()
+	case key.Matches(msg, keys.Exec):
+		return a.execShell()
 	case key.Matches(msg, keys.Stats):
 		return a.openStats()
 	case key.Matches(msg, keys.Start):

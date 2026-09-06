@@ -251,6 +251,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, a.setStatus(msg.err.Error(), true)
 		}
 		return a, tea.Batch(a.setStatus(msg.status, false), a.load(msg.kind))
+	case execDoneMsg:
+		if msg.err != nil {
+			return a, tea.Batch(a.setStatus(fmt.Sprintf("exec %s: %v", msg.name, msg.err), true), a.load(tabContainers))
+		}
+		return a, a.load(tabContainers)
 	case refreshTickMsg:
 		// Only refresh the list that is visible; panes and dialogs keep
 		// their own state.
