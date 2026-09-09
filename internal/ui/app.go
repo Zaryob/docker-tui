@@ -20,8 +20,16 @@ import (
 	"github.com/zaryob/docker-tui/internal/docker"
 )
 
+// Options configures the application.
+type Options struct {
+	// RefreshInterval is how often the visible list is reloaded. Zero or
+	// less disables automatic refreshing.
+	RefreshInterval time.Duration
+}
+
 // App is the root Bubble Tea model.
 type App struct {
+	opts    Options
 	client  *docker.Client
 	version docker.Version
 
@@ -49,12 +57,13 @@ type App struct {
 }
 
 // New creates the root model.
-func New(client *docker.Client) *App {
+func New(client *docker.Client, opts Options) *App {
 	fi := textinput.New()
 	fi.Prompt = "/"
 	fi.Placeholder = "filter"
 	fi.PromptStyle = lipgloss.NewStyle().Foreground(colorAccent)
 	return &App{
+		opts:   opts,
 		filter: fi,
 		client: client,
 		tabs: []*tab{
@@ -71,15 +80,16 @@ func New(client *docker.Client) *App {
 	}
 }
 
-const (
-	statusTimeout   = 4 * time.Second
-	refreshInterval = 3 * time.Second
-)
+const statusTimeout = 4 * time.Second
 
 type refreshTickMsg struct{}
 
-func refreshTick() tea.Cmd {
-	return tea.Tick(refreshInterval, func(time.Time) tea.Msg { return refreshTickMsg{} })
+// refreshTick schedules the next periodic refresh, if enabled.
+func (a *App) refreshTick() tea.Cmd {
+	if a.opts.RefreshInterval <= 0 {
+		return nil
+	}
+	return tea.Tick(a.opts.RefreshInterval, func(time.Time) tea.Msg { return refreshTickMsg{} })
 }
 
 type clearStatusMsg struct{ seq int }
@@ -187,7 +197,7 @@ func (a *App) load(kind tabKind) tea.Cmd {
 
 // Init implements tea.Model.
 func (a *App) Init() tea.Cmd {
-	return tea.Batch(a.loadVersion, a.load(tabContainers), a.spinner.Tick, refreshTick())
+	return tea.Batch(a.loadVersion, a.load(tabContainers), a.spinner.Tick, a.refreshTick())
 }
 
 func (a *App) handleFilterKey(msg tea.KeyMsg) tea.Cmd {
@@ -260,9 +270,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Only refresh the list that is visible; panes and dialogs keep
 		// their own state.
 		if a.pane == nil && a.confirm == nil {
-			return a, tea.Batch(a.load(a.current().kind), refreshTick())
+			return a, tea.Batch(a.load(a.current().kind), a.refreshTick())
 		}
-		return a, refreshTick()
+		return a, a.refreshTick()
 	case clearStatusMsg:
 		if msg.seq == a.statusSeq {
 			a.status = ""
