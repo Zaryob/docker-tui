@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -40,7 +41,7 @@ func NewClient(host string) (*Client, error) {
 		host = os.Getenv("DOCKER_HOST")
 	}
 	if host == "" {
-		host = DefaultHost
+		host = defaultHost()
 	}
 	u, err := url.Parse(host)
 	if err != nil {
@@ -72,6 +73,31 @@ func NewClient(host string) (*Client, error) {
 		base: base,
 		host: host,
 	}, nil
+}
+
+// defaultHost returns DefaultHost, unless its socket does not exist and one
+// of the well-known per-user sockets does (Docker Desktop, Colima, rootless
+// Docker).
+func defaultHost() string {
+	if _, err := os.Stat(strings.TrimPrefix(DefaultHost, "unix://")); err == nil {
+		return DefaultHost
+	}
+	var candidates []string
+	if home, err := os.UserHomeDir(); err == nil {
+		candidates = append(candidates,
+			filepath.Join(home, ".docker", "run", "docker.sock"),
+			filepath.Join(home, ".colima", "default", "docker.sock"),
+		)
+	}
+	if dir := os.Getenv("XDG_RUNTIME_DIR"); dir != "" {
+		candidates = append(candidates, filepath.Join(dir, "docker.sock"))
+	}
+	for _, path := range candidates {
+		if fi, err := os.Stat(path); err == nil && fi.Mode()&os.ModeSocket != 0 {
+			return "unix://" + path
+		}
+	}
+	return DefaultHost
 }
 
 // Host returns the daemon address the client connects to.
