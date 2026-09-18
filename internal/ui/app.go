@@ -352,6 +352,10 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		t.table.Bottom()
 	case key.Matches(msg, keys.Remove):
 		a.confirm = a.removeDialog()
+	case key.Matches(msg, keys.Sort):
+		t.cycleSort()
+	case key.Matches(msg, keys.ReverseSort):
+		t.reverseSort()
 	case key.Matches(msg, keys.Prune):
 		a.confirm = a.pruneDialog()
 	case key.Matches(msg, keys.Inspect):

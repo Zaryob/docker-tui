@@ -5,6 +5,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -38,7 +39,9 @@ func containerItems(list []docker.Container) []item {
 			id:    c.ID,
 			name:  c.Name(),
 			cells: []string{format.ShortID(c.ID), c.Name(), c.Image, c.State, c.Status},
-			data:  c,
+			// Sort the status column by creation time.
+			sortKeys: []string{4: fmt.Sprintf("%020d", c.Created)},
+			data:     c,
 		}
 	}
 	return items

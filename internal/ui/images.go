@@ -5,6 +5,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -47,6 +48,11 @@ func imageItems(list []docker.Image, now time.Time) []item {
 				format.Ago(time.Unix(img.Created, 0), now),
 				format.Size(img.Size),
 				used,
+			},
+			sortKeys: []string{
+				2: fmt.Sprintf("%020d", img.Created),
+				3: fmt.Sprintf("%020d", img.Size),
+				4: fmt.Sprintf("%020d", img.Containers),
 			},
 			data: img,
 		}

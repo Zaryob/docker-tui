@@ -3,7 +3,10 @@
 
 package ui
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 type tabKind int
 
@@ -19,7 +22,20 @@ type item struct {
 	id    string
 	name  string
 	cells []string
-	data  any
+	// sortKeys optionally overrides cells as the values compared when
+	// sorting, e.g. to sort sizes numerically.
+	sortKeys []string
+	data     any
+}
+
+func (it item) sortKey(col int) string {
+	if col < len(it.sortKeys) && it.sortKeys[col] != "" {
+		return it.sortKeys[col]
+	}
+	if col < len(it.cells) {
+		return strings.ToLower(it.cells[col])
+	}
+	return ""
 }
 
 // listMsg delivers a freshly loaded list of items for a tab.
@@ -31,19 +47,22 @@ type listMsg struct {
 
 // tab holds the state of one resource list (containers, images, ...).
 type tab struct {
-	kind    tabKind
-	title   string
-	noun    string
-	table   *Table
-	all     []item // every item as loaded
-	items   []item // items matching the filter, as shown in the table
-	filter  string
-	loaded  bool
-	loadErr error
+	kind   tabKind
+	title  string
+	noun   string
+	table  *Table
+	all    []item // every item as loaded
+	items  []item // items matching the filter, as shown in the table
+	filter string
+	// sortCol is the column used for sorting, or -1 for the daemon's order.
+	sortCol  int
+	sortDesc bool
+	loaded   bool
+	loadErr  error
 }
 
 func newTab(kind tabKind, title, noun string, columns ...Column) *tab {
-	return &tab{kind: kind, title: title, noun: noun, table: NewTable(columns...)}
+	return &tab{kind: kind, title: title, noun: noun, table: NewTable(columns...), sortCol: -1}
 }
 
 // setItems replaces the items of the tab.
@@ -56,6 +75,34 @@ func (t *tab) setItems(items []item) {
 // setFilter changes the filter and updates the visible rows.
 func (t *tab) setFilter(filter string) {
 	t.filter = filter
+	t.refresh()
+}
+
+// cycleSort sorts by the next column, toggling the direction once every
+// column has been used ascending, and finally returns to the default order.
+func (t *tab) cycleSort() {
+	n := len(t.table.columns)
+	switch {
+	case t.sortCol < 0:
+		t.sortCol, t.sortDesc = 0, false
+	case t.sortCol < n-1:
+		t.sortCol++
+	case !t.sortDesc:
+		t.sortCol, t.sortDesc = 0, true
+	default:
+		t.sortCol, t.sortDesc = -1, false
+	}
+	t.table.SetSort(t.sortCol, t.sortDesc)
+	t.refresh()
+}
+
+// reverseSort flips the sort direction of the current sort column.
+func (t *tab) reverseSort() {
+	if t.sortCol < 0 {
+		t.sortCol = 0
+	}
+	t.sortDesc = !t.sortDesc
+	t.table.SetSort(t.sortCol, t.sortDesc)
 	t.refresh()
 }
 
@@ -82,6 +129,16 @@ func (t *tab) refresh() {
 		if it.matches(t.filter) {
 			items = append(items, it)
 		}
+	}
+	if t.sortCol >= 0 {
+		col, desc := t.sortCol, t.sortDesc
+		sort.SliceStable(items, func(i, j int) bool {
+			a, b := items[i].sortKey(col), items[j].sortKey(col)
+			if desc {
+				return a > b
+			}
+			return a < b
+		})
 	}
 	t.items = items
 	rows := make([][]string, len(items))

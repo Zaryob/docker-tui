@@ -27,17 +27,19 @@ type Column struct {
 
 // Table is a simple scrollable table with a single-row cursor.
 type Table struct {
-	columns []Column
-	rows    [][]string
-	cursor  int
-	offset  int
-	width   int
-	height  int
+	columns  []Column
+	rows     [][]string
+	cursor   int
+	offset   int
+	width    int
+	height   int
+	sortCol  int
+	sortDesc bool
 }
 
 // NewTable returns a table with the given columns.
 func NewTable(columns ...Column) *Table {
-	return &Table{columns: columns}
+	return &Table{columns: columns, sortCol: -1}
 }
 
 // SetSize sets the outer size of the table, including the header row.
@@ -50,6 +52,11 @@ func (t *Table) SetSize(width, height int) {
 func (t *Table) SetRows(rows [][]string) {
 	t.rows = rows
 	t.clamp()
+}
+
+// SetSort marks column col as the sort column in the header; -1 clears it.
+func (t *Table) SetSort(col int, desc bool) {
+	t.sortCol, t.sortDesc = col, desc
 }
 
 // Len returns the number of rows.
@@ -157,6 +164,13 @@ func (t *Table) View() string {
 	titles := make([]string, len(t.columns))
 	for i, c := range t.columns {
 		titles[i] = c.Title
+		if i == t.sortCol {
+			if t.sortDesc {
+				titles[i] += " ▼"
+			} else {
+				titles[i] += " ▲"
+			}
+		}
 	}
 
 	lines := make([]string, 0, t.height)
