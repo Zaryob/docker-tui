@@ -256,3 +256,22 @@ func TestListVolumesAndNetworks(t *testing.T) {
 		t.Errorf("unexpected network %+v", nets[0])
 	}
 }
+
+func TestPrune(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/images/prune" {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		writeJSON(w, map[string]any{
+			"ImagesDeleted":  []map[string]string{{"Deleted": "sha256:1"}, {"Untagged": "foo:latest"}},
+			"SpaceReclaimed": 4096,
+		})
+	}))
+	r, err := c.PruneImages(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Deleted != 2 || r.SpaceReclaimed != 4096 {
+		t.Errorf("report = %+v", r)
+	}
+}
