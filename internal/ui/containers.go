@@ -6,6 +6,8 @@ package ui
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -22,6 +24,7 @@ func newContainersTab() *tab {
 		Column{Title: "IMAGE"},
 		Column{Title: "STATE", Width: 10},
 		Column{Title: "STATUS", Width: 24},
+		Column{Title: "PORTS"},
 	)
 }
 
@@ -38,13 +41,38 @@ func containerItems(list []docker.Container) []item {
 		items[i] = item{
 			id:    c.ID,
 			name:  c.Name(),
-			cells: []string{format.ShortID(c.ID), c.Name(), c.Image, c.State, c.Status},
+			cells: []string{format.ShortID(c.ID), c.Name(), c.Image, c.State, c.Status, formatPorts(c.Ports)},
 			// Sort the status column by creation time.
 			sortKeys: []string{4: fmt.Sprintf("%020d", c.Created)},
 			data:     c,
 		}
 	}
 	return items
+}
+
+// formatPorts renders port mappings compactly, e.g. "8080->80/tcp, 443/tcp".
+// IPv4 and IPv6 bindings of the same mapping are shown once.
+func formatPorts(ports []docker.Port) string {
+	seen := make(map[string]bool, len(ports))
+	var out []string
+	sorted := slices.Clone(ports)
+	slices.SortFunc(sorted, func(a, b docker.Port) int {
+		if a.PrivatePort != b.PrivatePort {
+			return int(a.PrivatePort) - int(b.PrivatePort)
+		}
+		return strings.Compare(a.Type, b.Type)
+	})
+	for _, p := range sorted {
+		s := fmt.Sprintf("%d/%s", p.PrivatePort, p.Type)
+		if p.PublicPort != 0 {
+			s = fmt.Sprintf("%d->%s", p.PublicPort, s)
+		}
+		if !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	return strings.Join(out, ", ")
 }
 
 func (a *App) containerKeys(msg tea.KeyMsg) tea.Cmd {
