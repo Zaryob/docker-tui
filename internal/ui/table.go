@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -35,6 +36,8 @@ type Table struct {
 	height   int
 	sortCol  int
 	sortDesc bool
+	// cellStyle, when set, returns the style for a cell of an unselected row.
+	cellStyle cellStyler
 }
 
 // NewTable returns a table with the given columns.
@@ -52,6 +55,11 @@ func (t *Table) SetSize(width, height int) {
 func (t *Table) SetRows(rows [][]string) {
 	t.rows = rows
 	t.clamp()
+}
+
+// SetCellStyle sets a function that styles individual cells.
+func (t *Table) SetCellStyle(fn cellStyler) {
+	t.cellStyle = fn
 }
 
 // SetSort marks column col as the sort column in the header; -1 clears it.
@@ -137,25 +145,38 @@ func (t *Table) widths() []int {
 	return widths
 }
 
-func renderCells(cells []string, widths []int) string {
+type cellStyler func(col int, value string) (lipgloss.Style, bool)
+
+func renderCells(cells []string, widths []int, style cellStyler) string {
 	parts := make([]string, len(widths))
 	for i, w := range widths {
 		cell := ""
 		if i < len(cells) {
 			cell = cells[i]
 		}
-		cell = runewidth.Truncate(cell, w, "…")
-		parts[i] = runewidth.FillRight(cell, w)
+		raw := cell
+		cell = runewidth.FillRight(runewidth.Truncate(cell, w, "…"), w)
+		if style != nil {
+			if st, ok := style(i, raw); ok {
+				cell = st.Render(cell)
+			}
+		}
+		parts[i] = cell
 	}
 	return strings.Join(parts, strings.Repeat(" ", columnGap))
 }
 
-// fit pads or truncates a rendered line to exactly the table width.
+// fit pads or truncates a rendered line to exactly the table width. It is
+// aware of ANSI escape sequences.
 func (t *Table) fit(line string) string {
 	if t.width <= 0 {
 		return line
 	}
-	return runewidth.FillRight(runewidth.Truncate(line, t.width, ""), t.width)
+	line = ansi.Truncate(line, t.width, "")
+	if pad := t.width - ansi.StringWidth(line); pad > 0 {
+		line += strings.Repeat(" ", pad)
+	}
+	return line
 }
 
 // View renders the table.
@@ -174,16 +195,20 @@ func (t *Table) View() string {
 	}
 
 	lines := make([]string, 0, t.height)
-	lines = append(lines, tableHeaderStyle.Render(t.fit(renderCells(titles, widths))))
+	lines = append(lines, tableHeaderStyle.Render(t.fit(renderCells(titles, widths, nil))))
 
 	end := t.offset + t.PageSize()
 	if end > len(t.rows) {
 		end = len(t.rows)
 	}
 	for i := t.offset; i < end; i++ {
-		line := t.fit(renderCells(t.rows[i], widths))
+		var line string
 		if i == t.cursor {
-			line = selectedRowStyle.Render(line)
+			// Cell styles would reset the selection background, so the
+			// selected row is rendered plain.
+			line = selectedRowStyle.Render(t.fit(renderCells(t.rows[i], widths, nil)))
+		} else {
+			line = t.fit(renderCells(t.rows[i], widths, t.cellStyle))
 		}
 		lines = append(lines, line)
 	}

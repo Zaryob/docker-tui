@@ -12,13 +12,31 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/zaryob/docker-tui/internal/docker"
 	"github.com/zaryob/docker-tui/internal/format"
 )
 
+const containerStateCol = 3
+
+// stateStyle returns the color for a container state.
+func stateStyle(state string) (lipgloss.Style, bool) {
+	switch state {
+	case "running":
+		return okStyle, true
+	case "paused", "restarting":
+		return warnStyle, true
+	case "exited", "dead":
+		return errorStyle, true
+	case "created", "removing":
+		return statusStyle, true
+	}
+	return lipgloss.Style{}, false
+}
+
 func newContainersTab() *tab {
-	return newTab(tabContainers, "Containers", "containers",
+	t := newTab(tabContainers, "Containers", "containers",
 		Column{Title: "CONTAINER ID", Width: 12},
 		Column{Title: "NAME"},
 		Column{Title: "IMAGE"},
@@ -26,6 +44,13 @@ func newContainersTab() *tab {
 		Column{Title: "STATUS", Width: 24},
 		Column{Title: "PORTS"},
 	)
+	t.table.SetCellStyle(func(col int, value string) (lipgloss.Style, bool) {
+		if col == containerStateCol {
+			return stateStyle(value)
+		}
+		return lipgloss.Style{}, false
+	})
+	return t
 }
 
 func (a *App) loadContainers() tea.Msg {
