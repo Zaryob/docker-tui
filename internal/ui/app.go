@@ -364,6 +364,10 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		if t.kind == tabContainers {
 			return a.containerKeys(msg)
 		}
+		// Objects other than containers have no logs; enter inspects them.
+		if key.Matches(msg, keys.Logs) {
+			return a.openInspect()
+		}
 	}
 	return nil
 }
