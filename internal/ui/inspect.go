@@ -87,7 +87,7 @@ func (v *inspectView) update(msg tea.Msg) tea.Cmd {
 				buf.Reset()
 				buf.Write(msg.data)
 			}
-			v.vp.SetContent(buf.String())
+			v.vp.SetContent(highlightJSON(buf.String()))
 		}
 		return nil
 	case tea.KeyMsg:
