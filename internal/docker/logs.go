@@ -66,7 +66,7 @@ func (c *Client) Logs(ctx context.Context, id string, opts LogOptions) (io.ReadC
 	if opts.Timestamps {
 		q.Set("timestamps", "1")
 	}
-	resp, err := c.do(ctx, http.MethodGet, "/containers/"+url.PathEscape(id)+"/logs", q, nil)
+	resp, err := c.do(ctx, http.MethodGet, "/containers/"+url.PathEscape(id)+"/logs", q)
 	if err != nil {
 		return nil, err
 	}

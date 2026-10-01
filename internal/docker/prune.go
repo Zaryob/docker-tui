@@ -18,7 +18,7 @@ type PruneReport struct {
 }
 
 func (c *Client) prune(ctx context.Context, path string) (PruneReport, error) {
-	resp, err := c.do(ctx, http.MethodPost, path, nil, nil)
+	resp, err := c.do(ctx, http.MethodPost, path, nil)
 	if err != nil {
 		return PruneReport{}, err
 	}

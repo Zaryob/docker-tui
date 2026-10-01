@@ -50,24 +50,24 @@ func (c *Client) ListContainers(ctx context.Context, all bool) ([]Container, err
 	return out, err
 }
 
-func (c *Client) containerAction(ctx context.Context, id, action string, q url.Values) error {
-	return c.post(ctx, "/containers/"+url.PathEscape(id)+"/"+action, q)
+func (c *Client) containerAction(ctx context.Context, id, action string) error {
+	return c.post(ctx, "/containers/"+url.PathEscape(id)+"/"+action, nil)
 }
 
 // StartContainer starts a stopped container.
 func (c *Client) StartContainer(ctx context.Context, id string) error {
-	return c.containerAction(ctx, id, "start", nil)
+	return c.containerAction(ctx, id, "start")
 }
 
 // StopContainer stops a running container, killing it after the daemon's
 // default grace period.
 func (c *Client) StopContainer(ctx context.Context, id string) error {
-	return c.containerAction(ctx, id, "stop", nil)
+	return c.containerAction(ctx, id, "stop")
 }
 
 // RestartContainer restarts a container.
 func (c *Client) RestartContainer(ctx context.Context, id string) error {
-	return c.containerAction(ctx, id, "restart", nil)
+	return c.containerAction(ctx, id, "restart")
 }
 
 // RemoveContainer removes a container. With force, a running container is
@@ -82,10 +82,10 @@ func (c *Client) RemoveContainer(ctx context.Context, id string, force bool) err
 
 // PauseContainer suspends all processes in a container.
 func (c *Client) PauseContainer(ctx context.Context, id string) error {
-	return c.containerAction(ctx, id, "pause", nil)
+	return c.containerAction(ctx, id, "pause")
 }
 
 // UnpauseContainer resumes a paused container.
 func (c *Client) UnpauseContainer(ctx context.Context, id string) error {
-	return c.containerAction(ctx, id, "unpause", nil)
+	return c.containerAction(ctx, id, "unpause")
 }

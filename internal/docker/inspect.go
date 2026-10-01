@@ -10,20 +10,20 @@ import (
 
 // InspectContainer returns the raw JSON description of a container.
 func (c *Client) InspectContainer(ctx context.Context, id string) ([]byte, error) {
-	return c.getRaw(ctx, "/containers/"+url.PathEscape(id)+"/json", nil)
+	return c.getRaw(ctx, "/containers/"+url.PathEscape(id)+"/json")
 }
 
 // InspectImage returns the raw JSON description of an image.
 func (c *Client) InspectImage(ctx context.Context, id string) ([]byte, error) {
-	return c.getRaw(ctx, "/images/"+url.PathEscape(id)+"/json", nil)
+	return c.getRaw(ctx, "/images/"+url.PathEscape(id)+"/json")
 }
 
 // InspectVolume returns the raw JSON description of a volume.
 func (c *Client) InspectVolume(ctx context.Context, name string) ([]byte, error) {
-	return c.getRaw(ctx, "/volumes/"+url.PathEscape(name), nil)
+	return c.getRaw(ctx, "/volumes/"+url.PathEscape(name))
 }
 
 // InspectNetwork returns the raw JSON description of a network.
 func (c *Client) InspectNetwork(ctx context.Context, id string) ([]byte, error) {
-	return c.getRaw(ctx, "/networks/"+url.PathEscape(id), nil)
+	return c.getRaw(ctx, "/networks/"+url.PathEscape(id))
 }

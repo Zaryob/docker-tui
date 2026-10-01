@@ -122,17 +122,14 @@ func IsNotFound(err error) bool {
 	return errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound
 }
 
-func (c *Client) do(ctx context.Context, method, path string, query url.Values, body io.Reader) (*http.Response, error) {
+func (c *Client) do(ctx context.Context, method, path string, query url.Values) (*http.Response, error) {
 	u := c.base + path
 	if len(query) > 0 {
 		u += "?" + query.Encode()
 	}
-	req, err := http.NewRequestWithContext(ctx, method, u, body)
+	req, err := http.NewRequestWithContext(ctx, method, u, nil)
 	if err != nil {
 		return nil, err
-	}
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -158,7 +155,7 @@ func decodeError(resp *http.Response) error {
 }
 
 func (c *Client) getJSON(ctx context.Context, path string, query url.Values, out any) error {
-	resp, err := c.do(ctx, http.MethodGet, path, query, nil)
+	resp, err := c.do(ctx, http.MethodGet, path, query)
 	if err != nil {
 		return err
 	}
@@ -166,8 +163,8 @@ func (c *Client) getJSON(ctx context.Context, path string, query url.Values, out
 	return json.NewDecoder(resp.Body).Decode(out)
 }
 
-func (c *Client) getRaw(ctx context.Context, path string, query url.Values) ([]byte, error) {
-	resp, err := c.do(ctx, http.MethodGet, path, query, nil)
+func (c *Client) getRaw(ctx context.Context, path string) ([]byte, error) {
+	resp, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +173,7 @@ func (c *Client) getRaw(ctx context.Context, path string, query url.Values) ([]b
 }
 
 func (c *Client) post(ctx context.Context, path string, query url.Values) error {
-	resp, err := c.do(ctx, http.MethodPost, path, query, nil)
+	resp, err := c.do(ctx, http.MethodPost, path, query)
 	if err != nil {
 		return err
 	}
@@ -185,7 +182,7 @@ func (c *Client) post(ctx context.Context, path string, query url.Values) error 
 }
 
 func (c *Client) delete(ctx context.Context, path string, query url.Values) error {
-	resp, err := c.do(ctx, http.MethodDelete, path, query, nil)
+	resp, err := c.do(ctx, http.MethodDelete, path, query)
 	if err != nil {
 		return err
 	}
@@ -197,7 +194,7 @@ func (c *Client) delete(ctx context.Context, path string, query url.Values) erro
 func (c *Client) Ping(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	_, err := c.getRaw(ctx, "/_ping", nil)
+	_, err := c.getRaw(ctx, "/_ping")
 	return err
 }
 
