@@ -43,12 +43,12 @@ func stateStyle(state string) (lipgloss.Style, bool) {
 func newContainersTab() *tab {
 	t := newTab(tabContainers, "Containers", "containers",
 		Column{Title: "CONTAINER ID", Width: 12},
-		Column{Title: "NAME"},
+		Column{Title: "NAME", Grow: 3},
 		Column{Title: "PROJECT", Width: 14},
-		Column{Title: "IMAGE"},
+		Column{Title: "IMAGE", Grow: 3},
 		Column{Title: "STATE", Width: 10},
 		Column{Title: "STATUS", Width: 24},
-		Column{Title: "PORTS"},
+		Column{Title: "PORTS", Grow: 2},
 	)
 	t.table.SetCellStyle(func(col int, value string) (lipgloss.Style, bool) {
 		if col == containerStateCol {

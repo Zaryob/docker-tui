@@ -20,10 +20,18 @@ var (
 
 // Column describes a table column. A Width of zero makes the column flexible:
 // flexible columns share whatever horizontal space is left after the fixed
-// columns have been laid out.
+// columns have been laid out, in proportion to their Grow weight (default 1).
 type Column struct {
 	Title string
 	Width int
+	Grow  int
+}
+
+func (c Column) weight() int {
+	if c.Grow > 0 {
+		return c.Grow
+	}
+	return 1
 }
 
 // Table is a simple scrollable table with a single-row cursor.
@@ -119,28 +127,34 @@ func (t *Table) clamp() {
 }
 
 func (t *Table) widths() []int {
+	const minFlex = 8
 	widths := make([]int, len(t.columns))
-	fixed, flex := 0, 0
+	fixed, weights := 0, 0
 	for i, c := range t.columns {
 		if c.Width > 0 {
 			widths[i] = c.Width
 			fixed += c.Width
 		} else {
-			flex++
+			weights += c.weight()
 		}
 	}
 	fixed += columnGap * (len(t.columns) - 1)
-	if flex > 0 {
-		remaining := t.width - fixed
-		if remaining < flex*8 {
-			remaining = flex * 8
+	if weights == 0 {
+		return widths
+	}
+	remaining := t.width - fixed
+	last := -1
+	used := 0
+	for i, c := range t.columns {
+		if c.Width == 0 {
+			widths[i] = max(remaining*c.weight()/weights, minFlex)
+			used += widths[i]
+			last = i
 		}
-		share := remaining / flex
-		for i, c := range t.columns {
-			if c.Width == 0 {
-				widths[i] = share
-			}
-		}
+	}
+	// Give the rounding remainder to the last flexible column.
+	if extra := remaining - used; extra > 0 {
+		widths[last] += extra
 	}
 	return widths
 }
