@@ -18,7 +18,12 @@ import (
 	"github.com/zaryob/docker-tui/internal/format"
 )
 
-const containerStateCol = 3
+const (
+	containerStateCol  = 4
+	containerStatusCol = 5
+
+	composeProjectLabel = "com.docker.compose.project"
+)
 
 // stateStyle returns the color for a container state.
 func stateStyle(state string) (lipgloss.Style, bool) {
@@ -39,6 +44,7 @@ func newContainersTab() *tab {
 	t := newTab(tabContainers, "Containers", "containers",
 		Column{Title: "CONTAINER ID", Width: 12},
 		Column{Title: "NAME"},
+		Column{Title: "PROJECT", Width: 14},
 		Column{Title: "IMAGE"},
 		Column{Title: "STATE", Width: 10},
 		Column{Title: "STATUS", Width: 24},
@@ -64,11 +70,19 @@ func containerItems(list []docker.Container) []item {
 	items := make([]item, len(list))
 	for i, c := range list {
 		items[i] = item{
-			id:    c.ID,
-			name:  c.Name(),
-			cells: []string{format.ShortID(c.ID), c.Name(), c.Image, c.State, c.Status, formatPorts(c.Ports)},
+			id:   c.ID,
+			name: c.Name(),
+			cells: []string{
+				format.ShortID(c.ID),
+				c.Name(),
+				c.Labels[composeProjectLabel],
+				c.Image,
+				c.State,
+				c.Status,
+				formatPorts(c.Ports),
+			},
 			// Sort the status column by creation time.
-			sortKeys: []string{4: fmt.Sprintf("%020d", c.Created)},
+			sortKeys: []string{containerStatusCol: fmt.Sprintf("%020d", c.Created)},
 			data:     c,
 		}
 	}
