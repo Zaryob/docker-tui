@@ -64,6 +64,7 @@ rootless Docker. Opening a shell requires the `docker` CLI to be installed.
 | `t`               | Show live stats of the selected container |
 | `e`               | Open a shell in the selected container   |
 | `i`               | Inspect the selected object              |
+| `y`               | Copy the ID of the selected object       |
 | `s` / `x` / `R`   | Start / stop / restart a container       |
 | `p`               | Pause or unpause a container             |
 | `a`               | Toggle showing stopped containers        |

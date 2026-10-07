@@ -360,6 +360,8 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		a.confirm = a.pruneDialog()
 	case key.Matches(msg, keys.Inspect):
 		return a.openInspect()
+	case key.Matches(msg, keys.CopyID):
+		return a.copyID()
 	default:
 		if t.kind == tabContainers {
 			return a.containerKeys(msg)
