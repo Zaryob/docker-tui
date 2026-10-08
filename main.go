@@ -12,6 +12,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/zaryob/docker-tui/internal/docker"
 	"github.com/zaryob/docker-tui/internal/ui"
@@ -59,6 +60,10 @@ func run() error {
 	if err := client.Ping(context.Background()); err != nil {
 		return fmt.Errorf("cannot reach docker daemon at %s: %w", client.Host(), err)
 	}
+
+	// Query the terminal background color before the program starts reading
+	// input; doing it lazily during the first render can swallow keystrokes.
+	lipgloss.SetHasDarkBackground(lipgloss.HasDarkBackground())
 
 	app := ui.New(client, ui.Options{RefreshInterval: refresh})
 	p := tea.NewProgram(app, tea.WithAltScreen())
