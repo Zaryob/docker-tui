@@ -7,11 +7,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"slices"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/zaryob/docker-tui/internal/buildx"
 	"github.com/zaryob/docker-tui/internal/docker"
 )
 
@@ -40,11 +39,7 @@ func (a *App) execShell() tea.Cmd {
 	cmd := exec.Command(bin, "exec", "-it", it.id, "sh", "-c", shellScript)
 	// Make the CLI talk to the same daemon as we do. DOCKER_HOST already
 	// identifies it, so drop a context selection that could conflict.
-	env := slices.DeleteFunc(os.Environ(), func(kv string) bool {
-		return strings.HasPrefix(kv, "DOCKER_CONTEXT=") || strings.HasPrefix(kv, "DOCKER_HOST=")
-	})
-	env = append(env, "DOCKER_HOST="+a.client.Host())
-	cmd.Env = env
+	cmd.Env = buildx.Env(os.Environ(), a.client.Host())
 	name := it.name
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		return execDoneMsg{name: name, err: err}
