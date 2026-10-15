@@ -31,6 +31,9 @@ type Client struct {
 	http *http.Client
 	base string
 	host string
+	// dial opens a raw connection to the daemon, used for streams that
+	// take over the connection, such as interactive exec sessions.
+	dial func(ctx context.Context) (net.Conn, error)
 }
 
 // NewClient returns a client for the daemon at host, which is either a
@@ -54,21 +57,30 @@ func NewClient(host string) (*Client, error) {
 
 	transport := &http.Transport{}
 	base := "http://docker"
+	var dial func(ctx context.Context) (net.Conn, error)
 	switch u.Scheme {
 	case "unix":
 		socket := u.Path
 		if socket == "" {
 			return nil, fmt.Errorf("invalid docker host %q: missing socket path", host)
 		}
-		transport.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
+		dial = func(ctx context.Context) (net.Conn, error) {
 			var d net.Dialer
 			return d.DialContext(ctx, "unix", socket)
+		}
+		transport.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return dial(ctx)
 		}
 	case "tcp", "http":
 		if u.Host == "" {
 			return nil, fmt.Errorf("invalid docker host %q: missing address", host)
 		}
 		base = "http://" + u.Host
+		addr := u.Host
+		dial = func(ctx context.Context) (net.Conn, error) {
+			var d net.Dialer
+			return d.DialContext(ctx, "tcp", addr)
+		}
 	default:
 		return nil, fmt.Errorf("unsupported docker host %q: only unix:// and tcp:// are supported", host)
 	}
@@ -76,6 +88,7 @@ func NewClient(host string) (*Client, error) {
 		http: &http.Client{Transport: transport},
 		base: base,
 		host: host,
+		dial: dial,
 	}, nil
 }
 

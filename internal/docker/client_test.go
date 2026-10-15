@@ -311,6 +311,85 @@ func TestEvents(t *testing.T) {
 	}
 }
 
+func TestExecSession(t *testing.T) {
+	var created map[string]any
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/containers/web/exec":
+			_ = json.NewDecoder(r.Body).Decode(&created)
+			writeJSON(w, map[string]string{"Id": "e1"})
+		case "/exec/e1/start":
+			if r.Header.Get("Upgrade") != "tcp" {
+				t.Errorf("Upgrade = %q", r.Header.Get("Upgrade"))
+			}
+			var start map[string]bool
+			if err := json.NewDecoder(r.Body).Decode(&start); err != nil || !start["Tty"] {
+				t.Errorf("start body = %v, %v", start, err)
+			}
+			hj, ok := w.(http.Hijacker)
+			if !ok {
+				t.Fatal("no hijacker")
+			}
+			conn, buf, err := hj.Hijack()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer conn.Close()
+			buf.WriteString("HTTP/1.1 101 UPGRADED\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n$ ")
+			buf.Flush()
+			// Echo one line of input, like a shell would.
+			line, _ := buf.ReadString('\n')
+			buf.WriteString("you typed " + line)
+			buf.Flush()
+		case "/exec/e1/resize":
+			if r.URL.RawQuery != "h=24&w=80" {
+				t.Errorf("resize query = %q", r.URL.RawQuery)
+			}
+			w.WriteHeader(http.StatusCreated)
+		case "/exec/e1/json":
+			writeJSON(w, map[string]any{"Running": false, "ExitCode": 3})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	ctx := context.Background()
+	id, err := c.CreateExec(ctx, "web", ExecConfig{Cmd: []string{"sh"}, Tty: true, AttachStdin: true, AttachStdout: true})
+	if err != nil || id != "e1" {
+		t.Fatalf("CreateExec = %q, %v", id, err)
+	}
+	if created["Tty"] != true || created["AttachStdin"] != true {
+		t.Errorf("exec config = %v", created)
+	}
+	conn, err := c.StartExec(ctx, id, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if _, err := io.WriteString(conn, "ls\n"); err != nil {
+		t.Fatal(err)
+	}
+	out, _ := io.ReadAll(conn)
+	if string(out) != "$ you typed ls\n" {
+		t.Errorf("output = %q", out)
+	}
+	if err := c.ResizeExec(ctx, id, 80, 24); err != nil {
+		t.Error(err)
+	}
+	if info, err := c.InspectExec(ctx, id); err != nil || info.ExitCode != 3 {
+		t.Errorf("InspectExec = %+v, %v", info, err)
+	}
+}
+
+func TestStartExecError(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+		writeJSON(w, map[string]string{"message": "container web is not running"})
+	}))
+	if _, err := c.StartExec(context.Background(), "e1", true); err == nil || err.Error() != "container web is not running" {
+		t.Errorf("err = %v", err)
+	}
+}
+
 func TestPrune(t *testing.T) {
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/images/prune" {
