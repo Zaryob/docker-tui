@@ -95,6 +95,26 @@ func TestMarkProject(t *testing.T) {
 	}
 }
 
+func TestOpenLogsOfMarkedContainers(t *testing.T) {
+	a := newTestApp(t, http.NotFoundHandler())
+	t1 := a.current()
+	t1.setItems(containerItems(containersFixture()))
+	t1.table.SetCursor(1)
+	a.handleKey(keyRunes("C"))
+	a.openLogs()
+	l, ok := a.pane.(*logView)
+	if !ok {
+		t.Fatal("log view not opened")
+	}
+	l.close()
+	if len(l.sources) != 2 || l.sources[0].name != "web" || l.sources[1].name != "db" {
+		t.Errorf("sources = %+v", l.sources)
+	}
+	if l.name != "2 containers: web, db" {
+		t.Errorf("title = %q", l.name)
+	}
+}
+
 func TestBulkRemoveDialog(t *testing.T) {
 	a := newTestApp(t, http.NotFoundHandler())
 	t1 := a.current()

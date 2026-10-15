@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -36,12 +37,19 @@ var (
 // previously closed view are ignored.
 var logGen int
 
-// logView streams the output of a container.
+// logSource is a container whose output is shown in a log view.
+type logSource struct {
+	id   string
+	name string
+}
+
+// logView streams the output of one or more containers. With several
+// containers, every line is prefixed with the name of its container.
 type logView struct {
-	gen    int
-	id     string
-	name   string
-	client *docker.Client
+	gen     int
+	name    string
+	sources []logSource
+	client  *docker.Client
 	// timestamps prefixes every line with the time it was logged.
 	timestamps bool
 	vp         viewport.Model
@@ -88,45 +96,108 @@ func (l *logView) setSize(width, height int) {
 	l.vp.Height = max(height-1, 1)
 }
 
-// openLogs opens the log view for the selected container.
+// openLogs opens the log view for the marked containers or, when none is
+// marked, for the selected one.
 func (a *App) openLogs() tea.Cmd {
-	it, ok := a.current().selected()
-	if !ok {
+	items := a.targets()
+	if len(items) == 0 {
 		return nil
 	}
-	l := newLogView(it.name, a.width, a.bodyHeight())
-	l.client, l.id = a.client, it.id
+	sources := make([]logSource, len(items))
+	for i, it := range items {
+		sources[i] = logSource{id: it.id, name: it.name}
+	}
+	name := items[0].name
+	if len(items) > 1 {
+		name = describeItems(items, "containers")
+	}
+	l := newLogView(name, a.width, a.bodyHeight())
+	l.client, l.sources = a.client, sources
 	a.pane = l
 	return l.start()
 }
 
-// start begins following the logs of the container in the background.
+// logPrefixColors are used in turn for the container names in front of the
+// lines of a log view with several containers.
+var logPrefixColors = []lipgloss.AdaptiveColor{
+	{Light: "#0B5CAD", Dark: "#2496ED"},
+	{Light: "#2E7D32", Dark: "#5FD787"},
+	{Light: "#B26A00", Dark: "#FFAF5F"},
+	{Light: "#8E24AA", Dark: "#D787FF"},
+	{Light: "#00838F", Dark: "#5FD7D7"},
+	{Light: "#C62828", Dark: "#FF8787"},
+}
+
+// logPrefixes returns the styled, aligned name prefix of every source, or
+// nil when there is a single source.
+func logPrefixes(sources []logSource) []string {
+	if len(sources) < 2 {
+		return nil
+	}
+	width := 0
+	for _, src := range sources {
+		width = max(width, ansi.StringWidth(src.name))
+	}
+	prefixes := make([]string, len(sources))
+	for i, src := range sources {
+		style := lipgloss.NewStyle().Foreground(logPrefixColors[i%len(logPrefixColors)])
+		prefixes[i] = style.Render(src.name+strings.Repeat(" ", width-ansi.StringWidth(src.name))+" |") + " "
+	}
+	return prefixes
+}
+
+// start begins following the logs of the containers in the background.
 func (l *logView) start() tea.Cmd {
-	client, id, timestamps := l.client, l.id, l.timestamps
+	client, timestamps := l.client, l.timestamps
 	ctx, cancel := context.WithCancel(context.Background())
 	l.cancel = cancel
 	ch := make(chan logEvent, logBatch)
 	l.ch = ch
-	go func() {
-		defer close(ch)
-		rc, err := client.Logs(ctx, id, docker.LogOptions{Follow: true, Tail: logTail, Timestamps: timestamps})
-		if err != nil {
-			ch <- logEvent{err: err}
-			return
+	prefixes := logPrefixes(l.sources)
+	// Share the history between the containers so that opening a large
+	// project does not flood the view.
+	tail := max(logTail/len(l.sources), 100)
+	var wg sync.WaitGroup
+	for i, src := range l.sources {
+		prefix := ""
+		if prefixes != nil {
+			prefix = prefixes[i]
 		}
-		defer rc.Close()
-		sc := bufio.NewScanner(rc)
-		sc.Buffer(make([]byte, 64*1024), 1024*1024)
-		for sc.Scan() {
-			select {
-			case ch <- logEvent{line: cleanLogLine(sc.Text())}:
-			case <-ctx.Done():
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			fail := func(err error) {
+				if len(l.sources) > 1 {
+					err = fmt.Errorf("%s: %w", src.name, err)
+				}
+				select {
+				case ch <- logEvent{err: err}:
+				case <-ctx.Done():
+				}
+			}
+			rc, err := client.Logs(ctx, src.id, docker.LogOptions{Follow: true, Tail: tail, Timestamps: timestamps})
+			if err != nil {
+				fail(err)
 				return
 			}
-		}
-		if err := sc.Err(); err != nil && ctx.Err() == nil {
-			ch <- logEvent{err: err}
-		}
+			defer rc.Close()
+			sc := bufio.NewScanner(rc)
+			sc.Buffer(make([]byte, 64*1024), 1024*1024)
+			for sc.Scan() {
+				select {
+				case ch <- logEvent{line: prefix + cleanLogLine(sc.Text())}:
+				case <-ctx.Done():
+					return
+				}
+			}
+			if err := sc.Err(); err != nil && ctx.Err() == nil {
+				fail(err)
+			}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(ch)
 	}()
 	return l.wait()
 }

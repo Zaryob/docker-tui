@@ -11,7 +11,8 @@ single static binary with no dependency on the Docker SDK.
 - Start, stop, restart, kill, pause/unpause and remove containers, one at a
   time or in bulk
 - Act on a whole **compose project** at once
-- Follow container **logs** in real time and search them
+- Follow container **logs** in real time and search them, also merged for
+  several containers such as a compose project
 - Live **stats**: CPU (with history), memory, network and block I/O
 - **Process list** of running containers, refreshed live
 - Open an interactive **shell** inside a running container
@@ -67,7 +68,7 @@ context selected with `DOCKER_CONTEXT` or `docker context use`,
 | `C`               | Mark all containers of the selected compose project |
 | `o` / `O`         | Cycle sort column / reverse sort order   |
 | `r`               | Refresh                                  |
-| `enter`           | Show logs of the selected container      |
+| `enter`           | Show logs of the selected or marked containers |
 | `t`               | Show live stats of the selected container |
 | `T`               | List the processes of the selected container |
 | `e`               | Open a shell in the selected container   |

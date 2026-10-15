@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
 	"testing"
 
@@ -69,7 +70,7 @@ func TestLogTimestampsRestartStream(t *testing.T) {
 	}
 
 	l := newLogView("web", 80, 10)
-	l.client, l.id = client, "x"
+	l.client, l.sources = client, []logSource{{id: "x", name: "web"}}
 	drain := func(cmd tea.Cmd) {
 		for cmd != nil {
 			cmd = l.update(cmd())
@@ -86,6 +87,41 @@ func TestLogTimestampsRestartStream(t *testing.T) {
 	}
 	if strings.Join(gotTimestamps, ",") != ",1" {
 		t.Errorf("timestamps query = %q, want \"\" then \"1\"", gotTimestamps)
+	}
+}
+
+func TestLogsOfSeveralContainers(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/containers/a1/json", "/containers/b2/json":
+			io.WriteString(w, `{"Config":{"Tty":true}}`)
+		case "/containers/a1/logs":
+			io.WriteString(w, "GET /\n")
+		case "/containers/b2/logs":
+			io.WriteString(w, "ready\n")
+		}
+	}))
+	defer srv.Close()
+	client, err := docker.NewClient("tcp://" + strings.TrimPrefix(srv.URL, "http://"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := newLogView("2 containers", 80, 10)
+	l.client = client
+	l.sources = []logSource{{id: "a1", name: "web"}, {id: "b2", name: "db-main"}}
+	for cmd := l.start(); cmd != nil; {
+		cmd = l.update(cmd())
+	}
+	got := make([]string, len(l.lines))
+	for i, line := range l.lines {
+		got[i] = ansi.Strip(line)
+	}
+	sort.Strings(got)
+	if want := "db-main | ready,web     | GET /"; strings.Join(got, ",") != want {
+		t.Errorf("lines = %q, want %q", strings.Join(got, ","), want)
+	}
+	if !l.done {
+		t.Error("view not done after all streams ended")
 	}
 }
 
