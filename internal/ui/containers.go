@@ -114,22 +114,53 @@ func formatPorts(ports []docker.Port) string {
 	return strings.Join(out, ", ")
 }
 
-// killDialog asks for confirmation before killing the selected container.
+// killDialog asks for confirmation before killing the targeted containers
+// that are running.
 func (a *App) killDialog() *confirmDialog {
-	it, ok := a.current().selected()
-	if !ok {
+	var items []item
+	for _, it := range a.targets() {
+		if c := it.data.(docker.Container); c.State == "running" || c.State == "restarting" {
+			items = append(items, it)
+		}
+	}
+	if len(items) == 0 {
 		return nil
 	}
-	if c := it.data.(docker.Container); c.State != "running" && c.State != "restarting" {
-		return nil
+	title, what := "Kill container?", items[0].name+" will be"
+	if len(items) > 1 {
+		title = "Kill " + countNoun(len(items), "containers") + "?"
+		what = describeItems(items, "containers") + "\n\nThey will be"
 	}
 	return &confirmDialog{
-		title:   "Kill container?",
-		message: it.name + " will be stopped immediately with SIGKILL.",
+		title:   title,
+		message: what + " stopped immediately with SIGKILL.",
 		onYes: func() tea.Cmd {
-			return a.objectAction("killed", a.client.KillContainer)
+			return a.itemsAction("killed", items, a.client.KillContainer)
 		},
 	}
+}
+
+// togglePause pauses the targeted containers, or unpauses them if they are
+// all paused.
+func (a *App) togglePause() tea.Cmd {
+	items := a.targets()
+	if len(items) == 0 {
+		return nil
+	}
+	allPaused := true
+	for _, it := range items {
+		allPaused = allPaused && it.data.(docker.Container).State == "paused"
+	}
+	if allPaused {
+		return a.itemsAction("unpaused", items, a.client.UnpauseContainer)
+	}
+	var running []item
+	for _, it := range items {
+		if it.data.(docker.Container).State == "running" {
+			running = append(running, it)
+		}
+	}
+	return a.itemsAction("paused", running, a.client.PauseContainer)
 }
 
 func (a *App) containerKeys(msg tea.KeyMsg) tea.Cmd {
@@ -157,14 +188,7 @@ func (a *App) containerKeys(msg tea.KeyMsg) tea.Cmd {
 	case key.Matches(msg, keys.Kill):
 		a.confirm = a.killDialog()
 	case key.Matches(msg, keys.Pause):
-		it, ok := a.current().selected()
-		if !ok {
-			return nil
-		}
-		if it.data.(docker.Container).State == "paused" {
-			return a.objectAction("unpaused", a.client.UnpauseContainer)
-		}
-		return a.objectAction("paused", a.client.PauseContainer)
+		return a.togglePause()
 	}
 	return nil
 }

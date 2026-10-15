@@ -62,6 +62,12 @@ context selected with `DOCKER_CONTEXT` or `docker context use`,
 | `pgup`, `pgdn`, `g`, `G` | Page up/down, jump to top/bottom  |
 | `/`               | Filter the list (`enter` keeps, `esc` clears) |
 | `space` / `ctrl+a` | Mark the selected / all visible objects (`esc` clears) |
+
+Actions such as start, stop, restart, kill, pause and remove apply to all
+marked objects, or to the selected one when nothing is marked.
+
+| Key               | Action                                   |
+| ----------------- | ---------------------------------------- |
 | `o` / `O`         | Cycle sort column / reverse sort order   |
 | `r`               | Refresh                                  |
 | `enter`           | Show logs of the selected container      |

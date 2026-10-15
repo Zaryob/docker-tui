@@ -125,37 +125,101 @@ type actionMsg struct {
 
 type actionFunc func(ctx context.Context, id string) error
 
-// objectAction runs fn against the selected object of the active tab and
-// reports the outcome as an actionMsg.
-func (a *App) objectAction(verb string, fn actionFunc) tea.Cmd {
+// targets returns the objects an action applies to: the marked objects of
+// the active tab or, when none is marked, the selected one.
+func (a *App) targets() []item {
 	t := a.current()
-	it, ok := t.selected()
-	if !ok {
+	if marked := t.markedItems(); len(marked) > 0 {
+		return marked
+	}
+	if it, ok := t.selected(); ok {
+		return []item{it}
+	}
+	return nil
+}
+
+// objectAction runs fn against the targets of the active tab and reports
+// the outcome as an actionMsg.
+func (a *App) objectAction(verb string, fn actionFunc) tea.Cmd {
+	return a.itemsAction(verb, a.targets(), fn)
+}
+
+// itemsAction runs fn against items one after the other and reports the
+// outcome as an actionMsg. The marks of the active tab are cleared, since
+// they have been used.
+func (a *App) itemsAction(verb string, items []item, fn actionFunc) tea.Cmd {
+	if len(items) == 0 {
 		return nil
 	}
+	t := a.current()
+	t.clearMarks()
 	a.busy++
-	kind := t.kind
+	kind, noun := t.kind, t.noun
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		if err := fn(ctx, it.id); err != nil {
-			return actionMsg{kind: kind, err: fmt.Errorf("%s %s: %w", verb, it.name, err)}
+		var errs []error
+		for _, it := range items {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			if err := fn(ctx, it.id); err != nil {
+				errs = append(errs, fmt.Errorf("%s %s: %w", verb, it.name, err))
+			}
+			cancel()
 		}
-		return actionMsg{kind: kind, status: fmt.Sprintf("%s %s", verb, it.name)}
+		return actionMsg{kind: kind, status: actionStatus(verb, noun, items, errs), err: actionError(verb, noun, len(items), errs)}
 	}
 }
 
-// removeDialog builds the confirmation dialog for removing the selected
-// object of the active tab.
+// actionStatus describes a successful action, e.g. "stopped web" or
+// "stopped 3 containers".
+func actionStatus(verb, noun string, items []item, errs []error) string {
+	if len(items) == 1 {
+		return verb + " " + items[0].name
+	}
+	return verb + " " + countNoun(len(items)-len(errs), noun)
+}
+
+// actionError summarizes the failures of an action on n objects in a single
+// line, or returns nil if there was none.
+func actionError(verb, noun string, n int, errs []error) error {
+	switch {
+	case len(errs) == 0:
+		return nil
+	case n == 1:
+		return errs[0]
+	case len(errs) == 1:
+		return fmt.Errorf("%s %d of %s; %w", verb, n-1, countNoun(n, noun), errs[0])
+	}
+	return fmt.Errorf("%s %d of %s; %w (and %d more errors)", verb, n-len(errs), countNoun(n, noun), errs[0], len(errs)-1)
+}
+
+// describeItems names the objects of a bulk action for a dialog, listing at
+// most a few of them.
+func describeItems(items []item, noun string) string {
+	const maxNames = 5
+	if len(items) == 1 {
+		return items[0].name
+	}
+	names := make([]string, 0, maxNames)
+	for _, it := range items[:min(len(items), maxNames)] {
+		names = append(names, it.name)
+	}
+	text := strings.Join(names, ", ")
+	if more := len(items) - maxNames; more > 0 {
+		text += fmt.Sprintf(" and %d more", more)
+	}
+	return countNoun(len(items), noun) + ": " + text
+}
+
+// removeDialog builds the confirmation dialog for removing the targets of
+// the active tab.
 func (a *App) removeDialog() *confirmDialog {
 	t := a.current()
-	it, ok := t.selected()
-	if !ok {
+	items := a.targets()
+	if len(items) == 0 {
 		return nil
 	}
 	remove := func(force bool) func() tea.Cmd {
 		return func() tea.Cmd {
-			return a.objectAction("removed", func(ctx context.Context, id string) error {
+			return a.itemsAction("removed", items, func(ctx context.Context, id string) error {
 				switch t.kind {
 				case tabContainers:
 					return a.client.RemoveContainer(ctx, id, force)
@@ -170,9 +234,13 @@ func (a *App) removeDialog() *confirmDialog {
 			})
 		}
 	}
+	title := "Remove " + strings.TrimSuffix(t.noun, "s") + "?"
+	if len(items) > 1 {
+		title = "Remove " + countNoun(len(items), t.noun) + "?"
+	}
 	d := &confirmDialog{
-		title:   "Remove " + strings.TrimSuffix(t.noun, "s") + "?",
-		message: it.name,
+		title:   title,
+		message: describeItems(items, t.noun),
 		onYes:   remove(false),
 	}
 	if t.kind != tabNetworks {
