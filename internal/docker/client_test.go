@@ -436,6 +436,50 @@ func TestStartExecError(t *testing.T) {
 	}
 }
 
+func TestSplitReference(t *testing.T) {
+	tests := []struct{ ref, image, tag string }{
+		{"alpine", "alpine", "latest"},
+		{"alpine:3.20", "alpine", "3.20"},
+		{"ghcr.io/owner/app:1.2", "ghcr.io/owner/app", "1.2"},
+		{"localhost:5000/app", "localhost:5000/app", "latest"},
+		{"localhost:5000/app:dev", "localhost:5000/app", "dev"},
+		{"alpine@sha256:abc", "alpine", "sha256:abc"},
+	}
+	for _, tt := range tests {
+		if image, tag := SplitReference(tt.ref); image != tt.image || tag != tt.tag {
+			t.Errorf("SplitReference(%q) = %q, %q", tt.ref, image, tag)
+		}
+	}
+}
+
+func TestPullImage(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/images/create" {
+			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
+		}
+		if q := r.URL.Query(); q.Get("fromImage") != "alpine" || q.Get("tag") != "3.20" {
+			t.Errorf("query = %q", r.URL.RawQuery)
+		}
+		writeJSON(w, map[string]any{"status": "Pulling from library/alpine", "id": "3.20"})
+		writeJSON(w, map[string]any{"status": "Downloading", "id": "abc", "progressDetail": map[string]any{"current": 50, "total": 100}})
+		writeJSON(w, map[string]any{"error": "toomanyrequests: rate limit"})
+	}))
+	s, err := c.PullImage(context.Background(), "alpine:3.20")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if p, err := s.Next(); err != nil || p.ID != "3.20" {
+		t.Fatalf("first = %+v, %v", p, err)
+	}
+	if p, err := s.Next(); err != nil || p.Detail.Current != 50 || p.Detail.Total != 100 {
+		t.Fatalf("second = %+v, %v", p, err)
+	}
+	if _, err := s.Next(); err == nil || err.Error() != "toomanyrequests: rate limit" {
+		t.Errorf("error = %v", err)
+	}
+}
+
 func TestPrune(t *testing.T) {
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/images/prune" {
