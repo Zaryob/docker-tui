@@ -21,7 +21,9 @@ import (
 const (
 	containerNameCol   = 1
 	containerStateCol  = 4
-	containerStatusCol = 5
+	containerCPUCol    = 5
+	containerMemCol    = 6
+	containerStatusCol = 7
 
 	composeProjectLabel = "com.docker.compose.project"
 )
@@ -48,6 +50,8 @@ func newContainersTab() *tab {
 		Column{Title: "PROJECT", Width: 14},
 		Column{Title: "IMAGE", Grow: 3},
 		Column{Title: "STATE", Width: 10},
+		Column{Title: "CPU %", Width: 6},
+		Column{Title: "MEM", Width: 9},
 		Column{Title: "STATUS", Width: 24},
 		Column{Title: "PORTS", Grow: 2},
 	)
@@ -104,7 +108,13 @@ func composeMemberName(it item, project string) string {
 func projectRow(project string, members []item, collapsed bool) item {
 	running, state := 0, ""
 	var ports []string
+	var total containerUsage
 	for _, m := range members {
+		if m.usage.ok {
+			total.ok = true
+			total.cpu += m.usage.cpu
+			total.mem += m.usage.mem
+		}
 		c := m.data.(docker.Container)
 		if c.State == "running" {
 			running++
@@ -128,6 +138,8 @@ func projectRow(project string, members []item, collapsed bool) item {
 			project,
 			"",
 			state,
+			total.cpuText(),
+			total.memText(),
 			fmt.Sprintf("%d/%d running", running, len(members)),
 			strings.Join(ports, ", "),
 		},
@@ -154,6 +166,8 @@ func containerItems(list []docker.Container) []item {
 				c.Labels[composeProjectLabel],
 				c.Image,
 				c.State,
+				"",
+				"",
 				c.Status,
 				formatPorts(c.Ports),
 			},

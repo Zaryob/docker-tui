@@ -17,6 +17,8 @@ single static binary with no dependency on the Docker SDK.
   several containers such as a compose project
 - Live **stats**: CPU (with history), memory, network and block I/O
 - **Process list** of running containers, refreshed live
+- **CPU and memory** of every running container in the list, summed per
+  compose project
 - **Pull** images with live progress per layer
 - **Build** images with BuildKit and browse the **build history** with its
   logs, like the Builds view of Docker Desktop

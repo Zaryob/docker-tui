@@ -61,6 +61,11 @@ type App struct {
 	statusErr bool
 	statusSeq int
 
+	// usage is the latest resource usage sample of the running
+	// containers; usagePolling is set once sampling started.
+	usage        map[string]containerUsage
+	usagePolling bool
+
 	// mouseOn records whether mouse reporting is enabled.
 	mouseOn bool
 
@@ -407,8 +412,24 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t := a.tabs[msg.kind]
 		t.loadErr = msg.err
 		if msg.err == nil {
+			if msg.kind == tabContainers {
+				applyUsage(msg.items, a.usage)
+			}
 			t.setItems(msg.items)
 		}
+		// Start sampling the resource usage once the containers are known.
+		if msg.kind == tabContainers && msg.err == nil && !a.usagePolling {
+			a.usagePolling = true
+			return a, a.loadUsage()
+		}
+	case usageMsg:
+		a.usage = msg.usage
+		t := a.tabs[tabContainers]
+		applyUsage(t.all, a.usage)
+		t.refresh()
+		return a, tea.Tick(usageInterval, func(time.Time) tea.Msg { return usageTickMsg{} })
+	case usageTickMsg:
+		return a, a.loadUsage()
 	case actionMsg:
 		a.busy--
 		if msg.err != nil {

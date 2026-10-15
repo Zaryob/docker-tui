@@ -30,6 +30,8 @@ type item struct {
 	data     any
 	// members is set on group rows and holds the objects of the group.
 	members []item
+	// usage is the resource usage of a container, when sampled.
+	usage containerUsage
 }
 
 // isGroup reports whether the item is a group row rather than an object.
