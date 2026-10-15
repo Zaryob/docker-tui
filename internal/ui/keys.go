@@ -24,6 +24,7 @@ type keyMap struct {
 	Start       key.Binding
 	Stop        key.Binding
 	Restart     key.Binding
+	Kill        key.Binding
 	Pause       key.Binding
 	Remove      key.Binding
 	Prune       key.Binding
@@ -56,6 +57,7 @@ var keys = keyMap{
 	Start:       key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start")),
 	Stop:        key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "stop")),
 	Restart:     key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "restart")),
+	Kill:        key.NewBinding(key.WithKeys("K"), key.WithHelp("K", "kill")),
 	Pause:       key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "pause/unpause")),
 	Remove:      key.NewBinding(key.WithKeys("d", "delete"), key.WithHelp("d", "remove")),
 	Prune:       key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "prune")),
@@ -78,7 +80,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.Top, k.Bottom},
-		{k.ToggleAll, k.Logs, k.Inspect, k.Stats, k.Exec, k.Start, k.Stop, k.Restart, k.Pause, k.Remove, k.Prune},
+		{k.ToggleAll, k.Logs, k.Inspect, k.Stats, k.Exec, k.Start, k.Stop, k.Restart, k.Kill, k.Pause, k.Remove, k.Prune},
 		{k.NextTab, k.PrevTab, k.JumpTab},
 		{k.Filter, k.ClearFilter, k.Sort, k.ReverseSort, k.CopyID, k.Refresh, k.Help, k.Quit},
 	}

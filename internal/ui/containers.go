@@ -114,6 +114,24 @@ func formatPorts(ports []docker.Port) string {
 	return strings.Join(out, ", ")
 }
 
+// killDialog asks for confirmation before killing the selected container.
+func (a *App) killDialog() *confirmDialog {
+	it, ok := a.current().selected()
+	if !ok {
+		return nil
+	}
+	if c := it.data.(docker.Container); c.State != "running" && c.State != "restarting" {
+		return nil
+	}
+	return &confirmDialog{
+		title:   "Kill container?",
+		message: it.name + " will be stopped immediately with SIGKILL.",
+		onYes: func() tea.Cmd {
+			return a.objectAction("killed", a.client.KillContainer)
+		},
+	}
+}
+
 func (a *App) containerKeys(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, keys.ToggleAll):
@@ -134,6 +152,8 @@ func (a *App) containerKeys(msg tea.KeyMsg) tea.Cmd {
 		return a.objectAction("stopped", a.client.StopContainer)
 	case key.Matches(msg, keys.Restart):
 		return a.objectAction("restarted", a.client.RestartContainer)
+	case key.Matches(msg, keys.Kill):
+		a.confirm = a.killDialog()
 	case key.Matches(msg, keys.Pause):
 		it, ok := a.current().selected()
 		if !ok {

@@ -65,6 +65,11 @@ func (c *Client) StopContainer(ctx context.Context, id string) error {
 	return c.containerAction(ctx, id, "stop")
 }
 
+// KillContainer sends SIGKILL to the main process of a running container.
+func (c *Client) KillContainer(ctx context.Context, id string) error {
+	return c.containerAction(ctx, id, "kill")
+}
+
 // RestartContainer restarts a container.
 func (c *Client) RestartContainer(ctx context.Context, id string) error {
 	return c.containerAction(ctx, id, "restart")
