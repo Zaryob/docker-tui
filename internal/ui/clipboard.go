@@ -9,6 +9,15 @@ import (
 	"github.com/muesli/termenv"
 )
 
+// copyToClipboard writes text to the system clipboard, falling back to OSC 52.
+func copyToClipboard(text string) error {
+	if err := clipboard.WriteAll(text); err != nil {
+		termenv.Copy(text)
+		return err
+	}
+	return nil
+}
+
 // copyID copies the full ID (or name, for volumes) of the selected object to
 // the clipboard.
 func (a *App) copyID() tea.Cmd {
@@ -16,10 +25,6 @@ func (a *App) copyID() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	if err := clipboard.WriteAll(it.id); err != nil {
-		// No clipboard utility available (e.g. over SSH): fall back to the
-		// OSC 52 escape sequence, which most terminal emulators support.
-		termenv.Copy(it.id)
-	}
+	copyToClipboard(it.id)
 	return a.setStatus("copied "+it.id+" to clipboard", false)
 }

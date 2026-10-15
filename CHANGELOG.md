@@ -3,6 +3,14 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.1] - 2026-10-15
+
+### Added
+
+- Logs tab (Tab 6) with structured Docker log viewer, regex search (`/pattern/`), case sensitivity toggle (`Aa`), row selection, line detail inspection, and clipboard export (`y`/`c`).
+- Geometric ASCII Docker whale logo with tail and container blocks in the header, fixed at 12 columns.
+- Modern capsule tab bar styling with colored active tab badges and symmetric separators.
+
 ## [0.6.0] - 2026-10-15
 
 ### Added

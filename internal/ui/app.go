@@ -93,6 +93,7 @@ func New(client *docker.Client, opts Options) *App {
 			newVolumesTab(),
 			newNetworksTab(),
 			newBuildsTab(),
+			newLogsTab(),
 		},
 		help: help.New(),
 		spinner: spinner.New(
@@ -296,7 +297,7 @@ func (a *App) removeDialog() *confirmDialog {
 		message: describeItems(items, t.noun),
 		onYes:   remove(false),
 	}
-	if t.kind != tabNetworks && t.kind != tabBuilds {
+	if t.kind != tabNetworks && t.kind != tabBuilds && t.kind != tabLogs {
 		d.onForce = remove(true)
 	}
 	return d
@@ -317,6 +318,8 @@ func (a *App) load(kind tabKind) tea.Cmd {
 		return a.loadNetworks
 	case tabBuilds:
 		return a.loadBuilds
+	case tabLogs:
+		return a.loadLogs
 	}
 	return nil
 }
@@ -630,6 +633,9 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		if t.kind == tabBuilds && key.Matches(msg, keys.Logs) {
 			return a.openBuildLogs()
 		}
+		if t.kind == tabLogs && key.Matches(msg, keys.Logs) {
+			return a.openSelectedLog()
+		}
 		// Other objects have no logs; enter inspects them.
 		if key.Matches(msg, keys.Logs) {
 			return a.openInspect()
@@ -677,9 +683,10 @@ func (a *App) helpKeys() help.KeyMap {
 // bodyHeight returns the height available between the header and the
 // status line.
 func (a *App) bodyHeight() int {
+	headerHeight := lipgloss.Height(a.header())
 	helpHeight := lipgloss.Height(a.help.View(a.helpKeys()))
 	// header + status line + help
-	return max(a.height-2-helpHeight, 1)
+	return max(a.height-headerHeight-1-helpHeight, 1)
 }
 
 // layout recomputes the size of the panes from the window size.
@@ -694,34 +701,57 @@ func (a *App) layout() {
 }
 
 func (a *App) header() string {
-	parts := []string{titleStyle.Render("docker-tui")}
+	styleContainer := lipgloss.NewStyle().Foreground(colorDockerBlue)
+	styleBody := lipgloss.NewStyle().Foreground(colorDockerPale)
+
+	// Fixed 12-column geometric logo with whale tail
+	logoLine1 := "    " + styleContainer.Render("▪ ▪ ▪") + "   "
+	logoLine2 := "  " + styleContainer.Render("▪ ▪ ▪ ▪") + "  " + styleBody.Render("╮")
+	logoLine3 := "   " + styleBody.Render("╰───────╯")
+
+	var tabRendered []string
 	for i, t := range a.tabs {
 		label := fmt.Sprintf("%d %s", i+1, t.title)
 		if i == a.active {
-			parts = append(parts, activeTabStyle.Render(label))
+			label = strings.ToUpper(label)
+			pill := lipgloss.NewStyle().Foreground(colorActiveTabBg).Render("▌") +
+				activeTabStyle.Render(" "+label+" ") +
+				lipgloss.NewStyle().Foreground(colorActiveTabBg).Render("▐")
+			tabRendered = append(tabRendered, pill)
 		} else {
-			parts = append(parts, tabStyle.Render(label))
+			tabRendered = append(tabRendered, tabStyle.Render(label))
 		}
 	}
-	left := lipgloss.JoinHorizontal(lipgloss.Top, parts...)
+	tabSep := " " + tabSepStyle.Render("│") + " "
+	tabBar := strings.Join(tabRendered, tabSep)
 
 	info := "connecting…"
 	if a.version.Version != "" {
-		info = fmt.Sprintf("Docker %s · API %s", a.version.Version, a.version.APIVersion)
+		info = fmt.Sprintf("Docker %s", a.version.Version)
 	}
 	right := headerInfoStyle.Render(info)
 	if bi := a.buildIndicator(); bi != "" {
-		// The running build matters more than the daemon version.
 		right = bi + "  " + right
-		if a.width-lipgloss.Width(left)-lipgloss.Width(right) < 1 {
-			right = bi
-		}
 	}
-	gap := a.width - lipgloss.Width(left) - lipgloss.Width(right)
-	if gap < 1 {
-		return left
+
+	const logoW = 12
+	const logoGap = 3
+	availWidth := a.width - logoW - logoGap
+	if availWidth < lipgloss.Width(tabBar)+lipgloss.Width(right) {
+		right = ""
 	}
-	return left + strings.Repeat(" ", gap) + right
+	gap := max(availWidth-lipgloss.Width(tabBar)-lipgloss.Width(right), 1)
+	row2Right := tabBar
+	if right != "" {
+		row2Right = tabBar + strings.Repeat(" ", gap) + right
+	}
+
+	row1 := logoLine1
+	row2 := logoLine2 + strings.Repeat(" ", logoGap) + row2Right
+	row3 := logoLine3
+	divider := tabSepStyle.Render(strings.Repeat("─", max(a.width, 10)))
+
+	return row1 + "\n" + row2 + "\n" + row3 + "\n" + divider
 }
 
 // View implements tea.Model.
