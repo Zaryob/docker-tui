@@ -58,6 +58,9 @@ type App struct {
 	statusErr bool
 	statusSeq int
 
+	// mouseOn records whether mouse reporting is enabled.
+	mouseOn bool
+
 	// events delivers the tabs affected by daemon events.
 	events chan tabKind
 
@@ -359,7 +362,31 @@ func (a *App) switchTab(i int) tea.Cmd {
 
 // Update implements tea.Model.
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m, cmd := a.update(msg)
+	return m, tea.Batch(cmd, a.syncMouse())
+}
+
+// syncMouse turns mouse reporting on while a terminal is shown, for wheel
+// scrolling, and off otherwise, so that text can be selected as usual.
+func (a *App) syncMouse() tea.Cmd {
+	_, want := a.pane.(*terminalView)
+	if want == a.mouseOn {
+		return nil
+	}
+	a.mouseOn = want
+	if want {
+		return tea.EnableMouseCellMotion
+	}
+	return tea.DisableMouse
+}
+
+func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.MouseMsg:
+		if v, ok := a.pane.(*terminalView); ok {
+			v.mouse(msg)
+		}
+		return a, nil
 	case tea.WindowSizeMsg:
 		a.width, a.height = msg.Width, msg.Height
 		a.help.Width = msg.Width
@@ -444,7 +471,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.pane != nil {
 			return a, a.pane.update(msg)
 		}
-	case termOutputMsg, termEndedMsg:
+	case termOutputMsg, termEndedMsg, termSettleMsg:
 		if a.pane != nil {
 			return a, a.pane.update(msg)
 		}

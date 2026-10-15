@@ -85,7 +85,7 @@ buildx) to be installed.
 | `e`               | Open a terminal in the selected container (`ctrl+p ctrl+q` or `ctrl+]` leaves) |
 | `A`               | Attach to the main process of the selected container (`ctrl+p ctrl+q` or `ctrl+]` detaches) |
 | `E`               | Open a full-screen shell with the docker CLI |
-| `shift+↑/↓`, `ctrl+pgup/pgdn` | In a terminal: scroll back through the output |
+| `shift+↑/↓`, `ctrl+pgup/pgdn`, mouse wheel | In a terminal: scroll back through the output |
 | `b`               | In images and builds: build an image, or show the running build |
 | `x`               | In the build output: cancel the build (`esc` keeps it running) |
 | `enter`           | In builds: show the logs of the build    |

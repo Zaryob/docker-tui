@@ -10,6 +10,7 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -74,6 +75,15 @@ type terminalView struct {
 	output chan struct{}
 	cancel context.CancelFunc
 
+	// Keys typed before the session settles are queued in pending: until
+	// it is connected, and while a starting shell still prints and queries
+	// the terminal, input would be lost. lastOutput is the time of the last
+	// output, in Unix nanoseconds, and connectedAt the time of connecting.
+	settled     bool
+	pending     []tea.KeyMsg
+	lastOutput  atomic.Int64
+	connectedAt time.Time
+
 	// detachPending is set after ctrl+p, the first key of the ctrl+p
 	// ctrl+q sequence that leaves the terminal, like in docker attach.
 	detachPending bool
@@ -92,6 +102,20 @@ type termStartedMsg struct {
 }
 
 type termOutputMsg struct{ gen int }
+
+// termSettleMsg checks whether the session has settled and queued input
+// can be sent.
+type termSettleMsg struct{ gen int }
+
+const (
+	// termQuiet is how long the output must pause before input is sent to
+	// a session that just started.
+	termQuiet = 150 * time.Millisecond
+	// termSettleMax bounds the wait for programs that keep printing.
+	termSettleMax = 2 * time.Second
+	// termWheelLines is how far one step of the mouse wheel scrolls.
+	termWheelLines = 3
+)
 
 type termEndedMsg struct {
 	gen    int
@@ -254,6 +278,7 @@ func (v *terminalView) pump() tea.Cmd {
 				v.mu.Lock()
 				_, _ = emu.Write(out)
 				v.mu.Unlock()
+				v.lastOutput.Store(time.Now().UnixNano())
 				select {
 				case output <- struct{}{}:
 				default:
@@ -337,14 +362,16 @@ func (v *terminalView) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		v.sess, v.connected = msg.sess, true
+		v.connectedAt = time.Now()
+		settle := v.settleTick()
 		// Apply the current size if it changed while connecting. Resizing
 		// needlessly makes some shells redraw and drop early input.
 		w, h := v.emu.Width(), v.emu.Height()
 		if v.startSize == [2]int{w, h} || v.sess.resize == nil {
-			return tea.Batch(v.pump(), v.waitOutput())
+			return tea.Batch(v.pump(), v.waitOutput(), settle)
 		}
 		resize := v.sess.resize
-		return tea.Batch(v.pump(), v.waitOutput(), func() tea.Msg {
+		return tea.Batch(v.pump(), v.waitOutput(), settle, func() tea.Msg {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			_ = resize(ctx, w, h)
@@ -355,6 +382,25 @@ func (v *terminalView) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return v.waitOutput()
+	case termSettleMsg:
+		if msg.gen != v.gen || v.settled || v.ended {
+			return nil
+		}
+		// Wait for the program to print something, e.g. a prompt, and then
+		// to pause; a shell that has not started yet would drop the input.
+		now := time.Now()
+		last := v.lastOutput.Load()
+		quiet := last != 0 && now.Sub(time.Unix(0, last)) >= termQuiet
+		if !quiet && now.Sub(v.connectedAt) < termSettleMax {
+			return v.settleTick()
+		}
+		v.settled = true
+		pending := v.pending
+		v.pending = nil
+		for _, k := range pending {
+			v.sendKey(k)
+		}
+		return nil
 	case termEndedMsg:
 		if msg.gen != v.gen {
 			return nil
@@ -394,6 +440,39 @@ func (v *terminalView) update(msg tea.Msg) tea.Cmd {
 		v.sendKey(msg)
 	}
 	return nil
+}
+
+func (v *terminalView) settleTick() tea.Cmd {
+	gen := v.gen
+	return tea.Tick(termQuiet/3, func(time.Time) tea.Msg { return termSettleMsg{gen: gen} })
+}
+
+// mouse scrolls the output with the wheel. Full-screen programs such as
+// less get arrow keys instead, like the alternate scroll mode of terminal
+// emulators.
+func (v *terminalView) mouse(msg tea.MouseMsg) {
+	if msg.Action != tea.MouseActionPress {
+		return
+	}
+	var delta int
+	var arrow tea.KeyType
+	switch msg.Button {
+	case tea.MouseButtonWheelUp:
+		delta, arrow = termWheelLines, tea.KeyUp
+	case tea.MouseButtonWheelDown:
+		delta, arrow = -termWheelLines, tea.KeyDown
+	default:
+		return
+	}
+	if v.emu.IsAltScreen() {
+		if v.capturesInput() {
+			for range termWheelLines {
+				v.sendKey(tea.KeyMsg{Type: arrow})
+			}
+		}
+		return
+	}
+	v.scrollBy(delta)
 }
 
 // scrollKey scrolls through the output for the scroll keys and reports
@@ -439,6 +518,10 @@ func (v *terminalView) scrollBy(delta int) {
 // sendKey encodes a key press for the session. The emulator knows the modes
 // the program has set, e.g. application cursor keys.
 func (v *terminalView) sendKey(msg tea.KeyMsg) {
+	if !v.settled {
+		v.pending = append(v.pending, msg)
+		return
+	}
 	if !v.connected || !v.sess.input {
 		return
 	}

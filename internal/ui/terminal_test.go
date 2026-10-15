@@ -135,6 +135,11 @@ func TestTerminal(t *testing.T) {
 			}
 		}
 	}
+	// The keys wait until the shell has been quiet for a moment.
+	r.run(nil, 2*time.Second, func() bool { return v.settled })
+	if !v.settled {
+		t.Fatal("session did not settle")
+	}
 	var got []string
 	timeout := time.After(2 * time.Second)
 	for strings.Join(got, "") != "ls\r\x03\x1b[A\x1bx" {
@@ -224,7 +229,7 @@ func TestTerminalScreenSize(t *testing.T) {
 }
 
 func TestTerminalScrollback(t *testing.T) {
-	v := &terminalView{name: "web", kind: "Terminal", connected: true, sess: &termSession{}}
+	v := &terminalView{name: "web", kind: "Terminal", connected: true, settled: true, sess: &termSession{}}
 	v.emu = newTestEmulator(20, 4)
 	v.emu.SetScrollbackSize(100)
 	for i := range 10 {
@@ -316,5 +321,66 @@ func TestAttachTerminal(t *testing.T) {
 	}
 	if header := strings.SplitN(ansi.Strip(v.view()), "\n", 2)[0]; !strings.Contains(header, "Attached: web") || !strings.Contains(header, "container exited with code 2") {
 		t.Errorf("header = %q", header)
+	}
+}
+
+func TestTerminalQueuesEarlyInput(t *testing.T) {
+	received := make(chan string, 16)
+	a := newTestApp(t, fakeShell(t, received))
+	t1 := a.current()
+	t1.setItems(containerItems(containersFixture()))
+	selectID(t, t1, "a1")
+	cmd := a.handleKey(keyRunes("e"))
+	v := a.pane.(*terminalView)
+	// Typed before the session is even connected.
+	a.handleKey(keyRunes("id"))
+	a.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	if len(v.pending) != 2 {
+		t.Fatalf("pending = %d keys, want 2", len(v.pending))
+	}
+	newCmdRunner(a).run(cmd, 3*time.Second, func() bool { return v.settled })
+	var got string
+	timeout := time.After(2 * time.Second)
+	for got != "id\r" {
+		select {
+		case s := <-received:
+			got += s
+		case <-timeout:
+			t.Fatalf("shell received %q, want the queued keys", got)
+		}
+	}
+}
+
+func TestTerminalMouseWheel(t *testing.T) {
+	v := &terminalView{name: "web", kind: "Terminal", connected: true, settled: true, sess: &termSession{}}
+	v.emu = newTestEmulator(20, 4)
+	v.emu.SetScrollbackSize(100)
+	for i := range 20 {
+		_, _ = fmt.Fprintf(v.emu, "line %d\r\n", i)
+	}
+	v.screen()
+	v.mouse(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonWheelUp})
+	if v.scroll != termWheelLines {
+		t.Errorf("scroll after wheel up = %d, want %d", v.scroll, termWheelLines)
+	}
+	v.mouse(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonWheelDown})
+	v.mouse(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonWheelDown})
+	if v.scroll != 0 {
+		t.Errorf("scroll after wheel down = %d, want 0", v.scroll)
+	}
+}
+
+func TestMouseOnlyWhileTerminalShown(t *testing.T) {
+	a := newTestApp(t, http.NotFoundHandler())
+	if a.syncMouse() != nil || a.mouseOn {
+		t.Fatal("mouse enabled without a terminal")
+	}
+	a.pane = &terminalView{emu: newTestEmulator(10, 3)}
+	if a.syncMouse() == nil || !a.mouseOn {
+		t.Error("mouse not enabled for the terminal")
+	}
+	a.pane = nil
+	if a.syncMouse() == nil || a.mouseOn {
+		t.Error("mouse not disabled after the terminal closed")
 	}
 }
