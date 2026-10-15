@@ -3,6 +3,18 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- Mark objects with `space`, or all visible ones with `ctrl+a`; `esc`
+  clears the marks.
+- Start, stop, restart, kill, pause/unpause and remove act on all marked
+  objects at once, several at a time.
+- Mark every container of the selected compose project with `C`.
+- The log view follows all marked containers together, prefixing each line
+  with the name of its container.
+
 ## [0.2.0] - 2026-10-15
 
 ### Added
