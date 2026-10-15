@@ -15,6 +15,14 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Built-in terminal for running containers with `e`, rendered inside the
   TUI through a terminal emulator; `ctrl+]` leaves it. The previous
   full-screen shell moved to `E`.
+- Scroll back through the output of a terminal with `shift+↑/↓` and
+  `ctrl+pgup/pgdn`; new output does not move the lines in view.
+- Attach to the main process of a container with `A`, like `docker attach`;
+  `ctrl+]` detaches without stopping it. Containers without a TTY show their
+  output read-only.
+- Closing the output of a build with `esc` keeps the build running in the
+  background, shown in the status line; `b` shows it again and `x` cancels
+  it.
 
 ## [0.3.0] - 2026-10-15
 
