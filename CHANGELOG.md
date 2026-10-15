@@ -3,6 +3,19 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.1] - 2026-10-15
+
+### Added
+
+- Scroll the output of a terminal with the mouse wheel. Full-screen programs
+  such as `less` receive arrow keys instead. Mouse reporting is only on while
+  a terminal is shown, so text can still be selected elsewhere.
+
+### Fixed
+
+- Keys typed while a terminal was connecting, or right as the shell started,
+  were lost. They are now queued and sent once the shell is ready.
+
 ## [0.4.0] - 2026-10-15
 
 ### Added
