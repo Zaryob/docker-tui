@@ -116,7 +116,8 @@ func (t *tab) toggleMark() {
 	if !ok {
 		return
 	}
-	if it.isGroup() {
+	switch {
+	case it.isGroup():
 		// Marking a group marks all its members, or unmarks them if they
 		// are all marked already.
 		all := allMarked(it.members, t.marked)
@@ -127,9 +128,9 @@ func (t *tab) toggleMark() {
 				t.marked[m.id] = true
 			}
 		}
-	} else if t.marked[it.id] {
+	case t.marked[it.id]:
 		delete(t.marked, it.id)
-	} else {
+	default:
 		t.marked[it.id] = true
 	}
 	t.refresh()
