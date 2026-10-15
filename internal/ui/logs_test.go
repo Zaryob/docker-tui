@@ -4,10 +4,16 @@
 package ui
 
 import (
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/zaryob/docker-tui/internal/docker"
 )
 
 func TestIndexFold(t *testing.T) {
@@ -42,6 +48,44 @@ func TestHighlightMatches(t *testing.T) {
 	}
 	if n := strings.Count(got, matchStyle.Render("Error")) + strings.Count(got, matchStyle.Render("error")); n != 2 {
 		t.Errorf("got %d highlighted matches in %q, want 2", n, got)
+	}
+}
+
+func TestLogTimestampsRestartStream(t *testing.T) {
+	var gotTimestamps []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/containers/x/json":
+			io.WriteString(w, `{"Config":{"Tty":true}}`)
+		case "/containers/x/logs":
+			gotTimestamps = append(gotTimestamps, r.URL.Query().Get("timestamps"))
+			io.WriteString(w, "line\n")
+		}
+	}))
+	defer srv.Close()
+	client, err := docker.NewClient("tcp://" + strings.TrimPrefix(srv.URL, "http://"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	l := newLogView("web", 80, 10)
+	l.client, l.id = client, "x"
+	drain := func(cmd tea.Cmd) {
+		for cmd != nil {
+			cmd = l.update(cmd())
+		}
+	}
+	drain(l.start())
+	oldGen := l.gen
+	drain(l.toggleTimestamps())
+	if !l.timestamps || l.gen == oldGen {
+		t.Errorf("timestamps = %v, gen %d -> %d", l.timestamps, oldGen, l.gen)
+	}
+	if len(l.lines) != 1 {
+		t.Errorf("lines = %q, want only the lines of the new stream", l.lines)
+	}
+	if strings.Join(gotTimestamps, ",") != ",1" {
+		t.Errorf("timestamps query = %q, want \"\" then \"1\"", gotTimestamps)
 	}
 }
 

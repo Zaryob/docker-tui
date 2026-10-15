@@ -74,6 +74,7 @@ rootless Docker. Opening a shell requires the `docker` CLI to be installed.
 | `d`               | Remove the selected object               |
 | `P`               | Prune unused objects of the current tab  |
 | `/`, `n` / `N`    | In logs: search, next / previous match   |
+| `t`               | In logs: toggle timestamps               |
 | `esc`             | Close logs, stats or inspect             |
 | `?`               | Toggle full help                         |
 | `q`               | Quit                                     |

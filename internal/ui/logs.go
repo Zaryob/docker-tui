@@ -39,13 +39,17 @@ var logGen int
 // logView streams the output of a container.
 type logView struct {
 	gen    int
+	id     string
 	name   string
-	vp     viewport.Model
-	lines  []string
-	ch     chan logEvent
-	cancel context.CancelFunc
-	done   bool
-	err    error
+	client *docker.Client
+	// timestamps prefixes every line with the time it was logged.
+	timestamps bool
+	vp         viewport.Model
+	lines      []string
+	ch         chan logEvent
+	cancel     context.CancelFunc
+	done       bool
+	err        error
 
 	// searching is true while the search input has focus.
 	searching bool
@@ -91,19 +95,21 @@ func (a *App) openLogs() tea.Cmd {
 		return nil
 	}
 	l := newLogView(it.name, a.width, a.bodyHeight())
+	l.client, l.id = a.client, it.id
 	a.pane = l
-	return l.start(a.client, it.id)
+	return l.start()
 }
 
 // start begins following the logs of the container in the background.
-func (l *logView) start(client *docker.Client, id string) tea.Cmd {
+func (l *logView) start() tea.Cmd {
+	client, id, timestamps := l.client, l.id, l.timestamps
 	ctx, cancel := context.WithCancel(context.Background())
 	l.cancel = cancel
 	ch := make(chan logEvent, logBatch)
 	l.ch = ch
 	go func() {
 		defer close(ch)
-		rc, err := client.Logs(ctx, id, docker.LogOptions{Follow: true, Tail: logTail})
+		rc, err := client.Logs(ctx, id, docker.LogOptions{Follow: true, Tail: logTail, Timestamps: timestamps})
 		if err != nil {
 			ch <- logEvent{err: err}
 			return
@@ -330,6 +336,8 @@ func (l *logView) update(msg tea.Msg) tea.Cmd {
 			l.search.SetValue(l.query)
 			l.search.CursorEnd()
 			return l.search.Focus()
+		case key.Matches(msg, logKeys.Timestamps):
+			return l.toggleTimestamps()
 		case key.Matches(msg, logKeys.NextMatch):
 			l.nextMatch(1)
 			return nil
@@ -343,21 +351,36 @@ func (l *logView) update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
+// toggleTimestamps restarts the stream with or without timestamps. The
+// lines received so far are replaced by the new stream.
+func (l *logView) toggleTimestamps() tea.Cmd {
+	l.close()
+	l.timestamps = !l.timestamps
+	logGen++
+	l.gen = logGen
+	l.lines, l.done, l.err = nil, false, nil
+	l.render()
+	l.match = -1
+	return l.start()
+}
+
 // logKeyMap holds the keys specific to the log view.
 type logKeyMap struct {
-	Search    key.Binding
-	NextMatch key.Binding
-	PrevMatch key.Binding
+	Search     key.Binding
+	NextMatch  key.Binding
+	PrevMatch  key.Binding
+	Timestamps key.Binding
 }
 
 var logKeys = logKeyMap{
-	Search:    key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
-	NextMatch: key.NewBinding(key.WithKeys("n"), key.WithHelp("n/N", "next/prev match")),
-	PrevMatch: key.NewBinding(key.WithKeys("N")),
+	Search:     key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
+	NextMatch:  key.NewBinding(key.WithKeys("n"), key.WithHelp("n/N", "next/prev match")),
+	PrevMatch:  key.NewBinding(key.WithKeys("N")),
+	Timestamps: key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "timestamps")),
 }
 
 func (k logKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{keys.Up, keys.Down, keys.PageUp, keys.PageDown, keys.Top, keys.Bottom, k.Search, k.NextMatch, keys.Back}
+	return []key.Binding{keys.Up, keys.Down, keys.PageUp, keys.PageDown, keys.Top, keys.Bottom, k.Search, k.NextMatch, k.Timestamps, keys.Back}
 }
 
 func (k logKeyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
