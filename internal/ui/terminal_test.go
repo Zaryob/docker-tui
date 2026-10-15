@@ -5,9 +5,11 @@ package ui
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -178,7 +180,7 @@ func TestTerminalSessionEnds(t *testing.T) {
 }
 
 func TestTerminalScreenSize(t *testing.T) {
-	v := &terminalView{name: "web"}
+	v := &terminalView{name: "web", kind: "Terminal"}
 	v.emu = newTestEmulator(20, 3)
 	v.connected = true
 	_, _ = v.emu.Write([]byte("a\x1b[31mred\x1b[0m"))
@@ -196,5 +198,101 @@ func TestTerminalScreenSize(t *testing.T) {
 	}
 	if ansi.Strip(lines[0])[:4] != "ared" {
 		t.Errorf("line 0 = %q", ansi.Strip(lines[0]))
+	}
+}
+
+func TestTerminalScrollback(t *testing.T) {
+	v := &terminalView{name: "web", kind: "Terminal", connected: true, sess: &termSession{}}
+	v.emu = newTestEmulator(20, 4)
+	v.emu.SetScrollbackSize(100)
+	for i := range 10 {
+		_, _ = fmt.Fprintf(v.emu, "line %d\r\n", i)
+	}
+	top := func() string { return strings.TrimSpace(ansi.Strip(strings.SplitN(v.screen(), "\n", 2)[0])) }
+	if got := top(); got != "line 7" {
+		t.Fatalf("top line = %q, want line 7", got)
+	}
+	v.update(tea.KeyMsg{Type: tea.KeyShiftUp})
+	if got := top(); got != "line 6" {
+		t.Errorf("after shift+up: %q, want line 6", got)
+	}
+	if !strings.Contains(ansi.Strip(v.view()), "↑ 1 line up") {
+		t.Errorf("header = %q", strings.SplitN(ansi.Strip(v.view()), "\n", 2)[0])
+	}
+	// New output does not move what is in view.
+	_, _ = v.emu.Write([]byte("line 10\r\nline 11\r\n"))
+	if got := top(); got != "line 6" {
+		t.Errorf("after new output: %q, want line 6", got)
+	}
+	v.update(tea.KeyMsg{Type: tea.KeyCtrlPgUp})
+	if got := top(); got != "line 3" {
+		t.Errorf("after ctrl+pgup: %q, want line 3", got)
+	}
+	v.scrollBy(1000)
+	if got := top(); got != "line 0" {
+		t.Errorf("scrolled to the top: %q, want line 0", got)
+	}
+	// Typing returns to the bottom.
+	v.update(keyRunes("a"))
+	if v.scroll != 0 || top() != "line 9" {
+		t.Errorf("after typing: scroll %d, top %q", v.scroll, top())
+	}
+}
+
+// muxFrame encodes p as a frame of the multiplexed stream of a container
+// without TTY.
+func muxFrame(stream byte, p string) []byte {
+	n := len(p)
+	return append([]byte{stream, 0, 0, 0, byte(n >> 24), byte(n >> 16), byte(n >> 8), byte(n)}, p...)
+}
+
+func TestAttachTerminal(t *testing.T) {
+	var inspections atomic.Int32
+	a := newTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/containers/a1/json":
+			running := inspections.Add(1) == 1
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"Config": map[string]any{"Tty": false, "OpenStdin": true},
+				"State":  map[string]any{"Running": running, "ExitCode": 2},
+			})
+		case "/containers/a1/attach":
+			conn, buf, err := w.(http.Hijacker).Hijack()
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			defer conn.Close()
+			buf.WriteString("HTTP/1.1 101 UPGRADED\r\nUpgrade: tcp\r\n\r\n")
+			buf.Write(muxFrame(1, "ready\n"))
+			buf.Flush()
+			line, _ := buf.ReadString('\r')
+			buf.Write(muxFrame(2, "got "+strings.TrimSpace(line)+"\n"))
+			buf.Flush()
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t1 := a.current()
+	t1.setItems(containerItems(containersFixture()))
+	selectID(t, t1, "a1")
+	r := newCmdRunner(a)
+	r.run(a.handleKey(keyRunes("A")), 2*time.Second, func() bool {
+		v, ok := a.pane.(*terminalView)
+		return ok && v.connected && strings.Contains(ansi.Strip(v.screen()), "ready")
+	})
+	v, ok := a.pane.(*terminalView)
+	if !ok || !v.connected {
+		t.Fatalf("pane = %T, err = %v", a.pane, v.err)
+	}
+	a.handleKey(keyRunes("hi"))
+	a.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	r.run(nil, 3*time.Second, func() bool { return v.ended })
+	lines := strings.Split(ansi.Strip(v.screen()), "\n")
+	if strings.TrimSpace(lines[0]) != "ready" || strings.TrimSpace(lines[1]) != "got hi" {
+		t.Errorf("screen lines = %q", lines[:3])
+	}
+	if header := strings.SplitN(ansi.Strip(v.view()), "\n", 2)[0]; !strings.Contains(header, "Attached: web") || !strings.Contains(header, "container exited with code 2") {
+		t.Errorf("header = %q", header)
 	}
 }

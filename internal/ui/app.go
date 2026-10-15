@@ -438,8 +438,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case termStartedMsg:
 		// A terminal closed before it connected leaves its session behind.
-		if a.pane == nil && msg.conn != nil {
-			msg.conn.Close()
+		if a.pane == nil && msg.sess != nil {
+			msg.sess.conn.Close()
 		}
 		if a.pane != nil {
 			return a, a.pane.update(msg)

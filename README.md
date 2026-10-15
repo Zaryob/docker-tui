@@ -20,7 +20,8 @@ single static binary with no dependency on the Docker SDK.
 - **Build** images with BuildKit and browse the **build history** with its
   logs, like the Builds view of Docker Desktop
 - Built-in **terminal** for running containers, like the Exec tab of Docker
-  Desktop, or a full-screen shell through the docker CLI
+  Desktop, with scrollback; **attach** to the main process of a container;
+  or a full-screen shell through the docker CLI
 - **Inspect** any object as pretty-printed JSON
 - Incremental **filtering** and column **sorting**
 - **Prune** stopped containers, dangling images, unused volumes and networks
@@ -82,7 +83,9 @@ buildx) to be installed.
 | `t`               | Show live stats of the selected container |
 | `T`               | List the processes of the selected container |
 | `e`               | Open a terminal in the selected container (`ctrl+]` leaves) |
+| `A`               | Attach to the main process of the selected container (`ctrl+]` detaches) |
 | `E`               | Open a full-screen shell with the docker CLI |
+| `shift+↑/↓`, `ctrl+pgup/pgdn` | In a terminal: scroll back through the output |
 | `b`               | In images and builds: build an image, or show the running build |
 | `x`               | In the build output: cancel the build (`esc` keeps it running) |
 | `enter`           | In builds: show the logs of the build    |
