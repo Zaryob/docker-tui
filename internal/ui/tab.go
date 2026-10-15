@@ -59,17 +59,92 @@ type tab struct {
 	sortDesc bool
 	loaded   bool
 	loadErr  error
+	// marked holds the IDs of the objects marked for a bulk action.
+	marked map[string]bool
 }
 
 func newTab(kind tabKind, title, noun string, columns ...Column) *tab {
-	return &tab{kind: kind, title: title, noun: noun, table: NewTable(columns...), sortCol: -1}
+	return &tab{kind: kind, title: title, noun: noun, table: NewTable(columns...), sortCol: -1, marked: map[string]bool{}}
 }
 
 // setItems replaces the items of the tab.
 func (t *tab) setItems(items []item) {
 	t.all = items
 	t.loaded = true
+	// Forget marks of objects that are gone.
+	present := make(map[string]bool, len(items))
+	for _, it := range items {
+		present[it.id] = true
+	}
+	for id := range t.marked {
+		if !present[id] {
+			delete(t.marked, id)
+		}
+	}
 	t.refresh()
+}
+
+// toggleMark marks or unmarks the selected object.
+func (t *tab) toggleMark() {
+	it, ok := t.selected()
+	if !ok {
+		return
+	}
+	if t.marked[it.id] {
+		delete(t.marked, it.id)
+	} else {
+		t.marked[it.id] = true
+	}
+	t.refresh()
+}
+
+// markAll marks every visible object, or unmarks them if all of them are
+// already marked.
+func (t *tab) markAll() {
+	all := len(t.items) > 0
+	for _, it := range t.items {
+		all = all && t.marked[it.id]
+	}
+	for _, it := range t.items {
+		if all {
+			delete(t.marked, it.id)
+		} else {
+			t.marked[it.id] = true
+		}
+	}
+	t.refresh()
+}
+
+// markWhere marks every object, visible or not, for which match is true and
+// returns how many there are.
+func (t *tab) markWhere(match func(item) bool) int {
+	n := 0
+	for _, it := range t.all {
+		if match(it) {
+			t.marked[it.id] = true
+			n++
+		}
+	}
+	t.refresh()
+	return n
+}
+
+// clearMarks unmarks every object.
+func (t *tab) clearMarks() {
+	clear(t.marked)
+	t.refresh()
+}
+
+// markedItems returns the marked objects in list order, including the ones
+// hidden by the filter.
+func (t *tab) markedItems() []item {
+	var out []item
+	for _, it := range t.all {
+		if t.marked[it.id] {
+			out = append(out, it)
+		}
+	}
+	return out
 }
 
 // setFilter changes the filter and updates the visible rows.
@@ -142,10 +217,13 @@ func (t *tab) refresh() {
 	}
 	t.items = items
 	rows := make([][]string, len(items))
+	marks := make([]bool, len(items))
 	for i, it := range items {
 		rows[i] = it.cells
+		marks[i] = t.marked[it.id]
 	}
 	t.table.SetRows(rows)
+	t.table.SetMarks(marks)
 	if hadPrev {
 		for i, it := range items {
 			if it.id == prev.id {

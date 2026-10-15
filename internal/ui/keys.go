@@ -20,6 +20,8 @@ type keyMap struct {
 	Sort        key.Binding
 	ReverseSort key.Binding
 	ClearFilter key.Binding
+	Mark        key.Binding
+	MarkAll     key.Binding
 	ToggleAll   key.Binding
 	Start       key.Binding
 	Stop        key.Binding
@@ -54,6 +56,8 @@ var keys = keyMap{
 	Sort:        key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "sort")),
 	ReverseSort: key.NewBinding(key.WithKeys("O"), key.WithHelp("O", "reverse sort")),
 	ClearFilter: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "clear filter")),
+	Mark:        key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "mark")),
+	MarkAll:     key.NewBinding(key.WithKeys("ctrl+a"), key.WithHelp("ctrl+a", "mark all")),
 	ToggleAll:   key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "toggle stopped")),
 	Start:       key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start")),
 	Stop:        key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "stop")),
@@ -84,7 +88,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.Top, k.Bottom},
 		{k.ToggleAll, k.Logs, k.Inspect, k.Stats, k.Processes, k.Exec, k.Start, k.Stop, k.Restart, k.Kill, k.Pause, k.Remove, k.Prune},
 		{k.NextTab, k.PrevTab, k.JumpTab},
-		{k.Filter, k.ClearFilter, k.Sort, k.ReverseSort, k.CopyID, k.Refresh, k.Help, k.Quit},
+		{k.Mark, k.MarkAll, k.Filter, k.ClearFilter, k.Sort, k.ReverseSort, k.CopyID, k.Refresh, k.Help, k.Quit},
 	}
 }
 

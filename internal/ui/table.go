@@ -16,6 +16,14 @@ const columnGap = 2
 var (
 	tableHeaderStyle = lipgloss.NewStyle().Bold(true).Foreground(colorAccent)
 	selectedRowStyle = lipgloss.NewStyle().Background(colorSelBg).Bold(true)
+	markStyle        = lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
+)
+
+// markGutter is the prefix shown before every row while some rows are
+// marked.
+const (
+	markGutter   = "✓ "
+	markGutterSp = "  "
 )
 
 // Column describes a table column. A Width of zero makes the column flexible:
@@ -44,6 +52,8 @@ type Table struct {
 	height   int
 	sortCol  int
 	sortDesc bool
+	// marks flags the rows marked for a bulk action.
+	marks []bool
 	// cellStyle, when set, returns the style for a cell of an unselected row.
 	cellStyle cellStyler
 }
@@ -68,6 +78,25 @@ func (t *Table) SetRows(rows [][]string) {
 // SetCellStyle sets a function that styles individual cells.
 func (t *Table) SetCellStyle(fn cellStyler) {
 	t.cellStyle = fn
+}
+
+// SetMarks flags rows as marked; marks[i] applies to row i.
+func (t *Table) SetMarks(marks []bool) {
+	t.marks = marks
+}
+
+// hasMarks reports whether any row is marked.
+func (t *Table) hasMarks() bool {
+	for _, m := range t.marks {
+		if m {
+			return true
+		}
+	}
+	return false
+}
+
+func (t *Table) marked(row int) bool {
+	return row < len(t.marks) && t.marks[row]
 }
 
 // SetSort marks column col as the sort column in the header; -1 clears it.
@@ -126,7 +155,7 @@ func (t *Table) clamp() {
 	}
 }
 
-func (t *Table) widths() []int {
+func (t *Table) widths(total int) []int {
 	const minFlex = 8
 	widths := make([]int, len(t.columns))
 	fixed, weights := 0, 0
@@ -142,7 +171,7 @@ func (t *Table) widths() []int {
 	if weights == 0 {
 		return widths
 	}
-	remaining := t.width - fixed
+	remaining := total - fixed
 	last := -1
 	used := 0
 	for i, c := range t.columns {
@@ -195,7 +224,24 @@ func (t *Table) fit(line string) string {
 
 // View renders the table.
 func (t *Table) View() string {
-	widths := t.widths()
+	// While rows are marked, a gutter in front of the rows shows which.
+	gutter := t.hasMarks()
+	total := t.width
+	if gutter {
+		total -= runewidth.StringWidth(markGutterSp)
+	}
+	widths := t.widths(total)
+	prefix := func(row int, styled bool) string {
+		switch {
+		case !gutter:
+			return ""
+		case row >= 0 && t.marked(row) && styled:
+			return markStyle.Render(markGutter)
+		case row >= 0 && t.marked(row):
+			return markGutter
+		}
+		return markGutterSp
+	}
 	titles := make([]string, len(t.columns))
 	for i, c := range t.columns {
 		titles[i] = c.Title
@@ -209,7 +255,7 @@ func (t *Table) View() string {
 	}
 
 	lines := make([]string, 0, t.height)
-	lines = append(lines, tableHeaderStyle.Render(t.fit(renderCells(titles, widths, nil))))
+	lines = append(lines, tableHeaderStyle.Render(t.fit(prefix(-1, false)+renderCells(titles, widths, nil))))
 
 	end := t.offset + t.PageSize()
 	if end > len(t.rows) {
@@ -220,9 +266,9 @@ func (t *Table) View() string {
 		if i == t.cursor {
 			// Cell styles would reset the selection background, so the
 			// selected row is rendered plain.
-			line = selectedRowStyle.Render(t.fit(renderCells(t.rows[i], widths, nil)))
+			line = selectedRowStyle.Render(t.fit(prefix(i, false) + renderCells(t.rows[i], widths, nil)))
 		} else {
-			line = t.fit(renderCells(t.rows[i], widths, t.cellStyle))
+			line = t.fit(prefix(i, true) + renderCells(t.rows[i], widths, t.cellStyle))
 		}
 		lines = append(lines, line)
 	}

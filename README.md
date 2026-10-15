@@ -61,6 +61,7 @@ context selected with `DOCKER_CONTEXT` or `docker context use`,
 | `↑`/`k`, `↓`/`j`  | Move the cursor                          |
 | `pgup`, `pgdn`, `g`, `G` | Page up/down, jump to top/bottom  |
 | `/`               | Filter the list (`enter` keeps, `esc` clears) |
+| `space` / `ctrl+a` | Mark the selected / all visible objects (`esc` clears) |
 | `o` / `O`         | Cycle sort column / reverse sort order   |
 | `r`               | Refresh                                  |
 | `enter`           | Show logs of the selected container      |

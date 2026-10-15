@@ -78,6 +78,26 @@ func TestTableTruncatesCells(t *testing.T) {
 	}
 }
 
+func TestTableMarkGutter(t *testing.T) {
+	tb := NewTable(Column{Title: "ID", Width: 4}, Column{Title: "NAME"})
+	tb.SetSize(20, 4)
+	tb.SetRows(makeRows(3))
+	if strings.Contains(ansi.Strip(tb.View()), "✓") {
+		t.Fatal("gutter shown without marks")
+	}
+	tb.SetMarks([]bool{false, true, false})
+	lines := strings.Split(ansi.Strip(tb.View()), "\n")
+	want := []string{"  ID", "  id0", "✓ id1", "  id2"}
+	for i, w := range want {
+		if !strings.HasPrefix(lines[i], w) {
+			t.Errorf("line %d = %q, want prefix %q", i, lines[i], w)
+		}
+		if ansi.StringWidth(lines[i]) != 20 {
+			t.Errorf("line %d has width %d, want 20", i, ansi.StringWidth(lines[i]))
+		}
+	}
+}
+
 func TestEmptyTableView(t *testing.T) {
 	tb := NewTable(Column{Title: "ID"})
 	tb.SetSize(10, 3)

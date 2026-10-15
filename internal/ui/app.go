@@ -339,6 +339,13 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, keys.ClearFilter) && t.filter != "":
 		t.setFilter("")
+	case key.Matches(msg, keys.ClearFilter) && len(t.marked) > 0:
+		t.clearMarks()
+	case key.Matches(msg, keys.Mark):
+		t.toggleMark()
+		t.table.Move(1)
+	case key.Matches(msg, keys.MarkAll):
+		t.markAll()
 	case key.Matches(msg, keys.Filter):
 		a.filtering = true
 		a.filter.SetValue(t.filter)
@@ -508,6 +515,9 @@ func (a *App) statusLine() string {
 		text := countNoun(len(t.all), t.noun)
 		if t.filter != "" {
 			text = fmt.Sprintf("%d of %s matching %q", len(t.items), text, t.filter)
+		}
+		if n := len(t.marked); n > 0 {
+			text += fmt.Sprintf(" · %d marked", n)
 		}
 		return prefix + statusStyle.Render(text)
 	}
