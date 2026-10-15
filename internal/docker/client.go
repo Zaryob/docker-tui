@@ -140,13 +140,21 @@ func IsNotFound(err error) bool {
 }
 
 func (c *Client) do(ctx context.Context, method, path string, query url.Values) (*http.Response, error) {
+	return c.doBody(ctx, method, path, query, nil, "")
+}
+
+// doBody sends a request with a body of the given content type.
+func (c *Client) doBody(ctx context.Context, method, path string, query url.Values, body io.Reader, contentType string) (*http.Response, error) {
 	u := c.base + path
 	if len(query) > 0 {
 		u += "?" + query.Encode()
 	}
-	req, err := http.NewRequestWithContext(ctx, method, u, nil)
+	req, err := http.NewRequestWithContext(ctx, method, u, body)
 	if err != nil {
 		return nil, err
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {

@@ -5,6 +5,7 @@ package docker
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -477,6 +478,54 @@ func TestPullImage(t *testing.T) {
 	}
 	if _, err := s.Next(); err == nil || err.Error() != "toomanyrequests: rate limit" {
 		t.Errorf("error = %v", err)
+	}
+}
+
+func TestArchive(t *testing.T) {
+	var uploaded string
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/containers/web/archive" {
+			http.NotFound(w, r)
+			return
+		}
+		p := r.URL.Query().Get("path")
+		switch r.Method {
+		case http.MethodHead:
+			if p != "/etc" {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			stat, _ := json.Marshal(map[string]any{"name": "etc", "size": 4096, "mode": uint32(os.ModeDir | 0o755)})
+			w.Header().Set("X-Docker-Container-Path-Stat", base64.StdEncoding.EncodeToString(stat))
+		case http.MethodGet:
+			io.WriteString(w, "TAR:"+p)
+		case http.MethodPut:
+			if r.Header.Get("Content-Type") != "application/x-tar" {
+				t.Errorf("content type = %q", r.Header.Get("Content-Type"))
+			}
+			b, _ := io.ReadAll(r.Body)
+			uploaded = p + "=" + string(b)
+		}
+	}))
+	ctx := context.Background()
+	st, err := c.StatPath(ctx, "web", "/etc")
+	if err != nil || !st.Mode.IsDir() || st.Name != "etc" {
+		t.Errorf("StatPath = %+v, %v", st, err)
+	}
+	if _, err := c.StatPath(ctx, "web", "/missing"); !IsNotFound(err) {
+		t.Errorf("missing path: %v", err)
+	}
+	rc, err := c.CopyFromContainer(ctx, "web", "/etc/hosts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := io.ReadAll(rc)
+	rc.Close()
+	if string(b) != "TAR:/etc/hosts" {
+		t.Errorf("download = %q", b)
+	}
+	if err := c.CopyToContainer(ctx, "web", "/tmp", strings.NewReader("data")); err != nil || uploaded != "/tmp=data" {
+		t.Errorf("upload = %q, %v", uploaded, err)
 	}
 }
 
