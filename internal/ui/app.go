@@ -34,6 +34,9 @@ type App struct {
 	opts   Options
 	client *docker.Client
 	buildx *buildx.CLI
+	// pull is the running image pull, which keeps running when its view
+	// is closed.
+	pull *pullView
 	// build is the output of the running build, which keeps running when
 	// its view is closed.
 	build   *logView
@@ -363,6 +366,10 @@ func (a *App) switchTab(i int) tea.Cmd {
 // Update implements tea.Model.
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m, cmd := a.update(msg)
+	// A pull started from its view keeps running in the background.
+	if v, ok := a.pane.(*pullView); ok && v.running() && a.pull == nil {
+		a.pull = v
+	}
 	return m, tea.Batch(cmd, a.syncMouse())
 }
 
@@ -448,6 +455,14 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		a.spinner, cmd = a.spinner.Update(msg)
 		return a, cmd
+	case pullMsg:
+		if a.pull != nil && msg.gen == a.pull.gen {
+			cmd := a.pull.update(msg)
+			if a.pull.done {
+				return a, tea.Batch(cmd, a.pullFinished())
+			}
+			return a, cmd
+		}
 	case logChunkMsg:
 		if a.build != nil && msg.gen == a.build.gen {
 			cmd := a.build.update(msg)
@@ -500,6 +515,10 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 			return a.pane.update(msg)
 		}
 		switch {
+		case key.Matches(msg, keys.Back) && a.pull != nil && a.pane == pane(a.pull) && a.pull.running():
+			a.pane = nil
+			a.layout()
+			return a.setStatus("pull continues in the background; u shows it again", false)
 		case key.Matches(msg, keys.Back) && a.pane == asPane(a.build):
 			// Closing the output of a build leaves the build running.
 			a.pane = nil
@@ -573,6 +592,9 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	default:
 		if t.kind == tabContainers {
 			return a.containerKeys(msg)
+		}
+		if t.kind == tabImages && key.Matches(msg, keys.Pull) {
+			return a.showPull()
 		}
 		if (t.kind == tabImages || t.kind == tabBuilds) && key.Matches(msg, keys.Build) {
 			return a.showBuild()
@@ -707,6 +729,9 @@ func (a *App) statusLine() string {
 	// of the header.
 	if bi := a.buildIndicator(); bi != "" {
 		prefix += bi + statusStyle.Render(" · ")
+	}
+	if pi := a.pullIndicator(); pi != "" {
+		prefix += pi + statusStyle.Render(" · ")
 	}
 	switch {
 	case a.status != "" && a.statusErr:

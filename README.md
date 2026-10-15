@@ -17,6 +17,7 @@ single static binary with no dependency on the Docker SDK.
   several containers such as a compose project
 - Live **stats**: CPU (with history), memory, network and block I/O
 - **Process list** of running containers, refreshed live
+- **Pull** images with live progress per layer
 - **Build** images with BuildKit and browse the **build history** with its
   logs, like the Builds view of Docker Desktop
 - Built-in **terminal** for running containers, like the Exec tab of Docker
@@ -87,6 +88,7 @@ buildx) to be installed.
 | `E`               | Open a full-screen shell with the docker CLI |
 | `shift+↑/↓`, `ctrl+pgup/pgdn`, mouse wheel | In a terminal: scroll back through the output |
 | `b`               | In images and builds: build an image, or show the running build |
+| `u`               | In images: pull an image, or show the running pull (`x` cancels) |
 | `x`               | In the build output: cancel the build (`esc` keeps it running) |
 | `enter`           | In builds: show the logs of the build    |
 | `i`               | Inspect the selected object              |
