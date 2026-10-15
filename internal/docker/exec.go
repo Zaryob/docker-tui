@@ -83,24 +83,35 @@ func (c *hijackedConn) CloseWrite() error {
 // output. With a TTY the output is the raw terminal stream. The caller must
 // close the connection.
 func (c *Client) StartExec(ctx context.Context, execID string, tty bool) (io.ReadWriteCloser, error) {
-	if c.dial == nil {
-		return nil, fmt.Errorf("interactive exec is not supported for %s", c.host)
-	}
 	body, err := json.Marshal(map[string]bool{"Detach": false, "Tty": tty})
 	if err != nil {
 		return nil, err
+	}
+	return c.hijack(ctx, "/exec/"+url.PathEscape(execID)+"/start", nil, body)
+}
+
+// hijack sends a POST request that the daemon answers by handing the
+// connection over to a raw stream, and returns that connection.
+func (c *Client) hijack(ctx context.Context, path string, query url.Values, body []byte) (*hijackedConn, error) {
+	if c.dial == nil {
+		return nil, fmt.Errorf("interactive sessions are not supported for %s", c.host)
 	}
 	conn, err := c.dial(ctx)
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest(http.MethodPost, "http://docker/exec/"+url.PathEscape(execID)+"/start", bytes.NewReader(body))
+	u := "http://docker" + path
+	if len(query) > 0 {
+		u += "?" + query.Encode()
+	}
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		conn.Close()
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/json")
-	// Ask the daemon to hand the connection over to the exec stream.
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "tcp")
 	if deadline, ok := ctx.Deadline(); ok {
@@ -126,6 +137,78 @@ func (c *Client) StartExec(ctx context.Context, execID string, tty bool) (io.Rea
 	}
 	_ = conn.SetDeadline(time.Time{})
 	return &hijackedConn{Conn: conn, r: br}, nil
+}
+
+// AttachInfo describes the main process of a container for attaching.
+type AttachInfo struct {
+	// Tty reports whether the container has a terminal; without one, the
+	// output is plain lines.
+	Tty bool
+	// OpenStdin reports whether the process reads standard input.
+	OpenStdin bool
+	Running   bool
+	ExitCode  int
+}
+
+// ContainerAttachInfo returns what attaching to a container offers.
+func (c *Client) ContainerAttachInfo(ctx context.Context, id string) (AttachInfo, error) {
+	var info struct {
+		Config struct {
+			Tty       bool `json:"Tty"`
+			OpenStdin bool `json:"OpenStdin"`
+		} `json:"Config"`
+		State struct {
+			Running  bool `json:"Running"`
+			ExitCode int  `json:"ExitCode"`
+		} `json:"State"`
+	}
+	err := c.getJSON(ctx, "/containers/"+url.PathEscape(id)+"/json", nil, &info)
+	return AttachInfo{
+		Tty: info.Config.Tty, OpenStdin: info.Config.OpenStdin,
+		Running: info.State.Running, ExitCode: info.State.ExitCode,
+	}, err
+}
+
+// AttachContainer connects to the main process of a container, like
+// "docker attach": writes go to its standard input, if it is open, and reads
+// return its output. Without a TTY the daemon multiplexes stdout and stderr,
+// which is undone here. Closing the connection detaches without stopping
+// the container.
+func (c *Client) AttachContainer(ctx context.Context, id string, tty bool) (io.ReadWriteCloser, error) {
+	q := url.Values{}
+	for _, k := range []string{"stream", "stdin", "stdout", "stderr"} {
+		q.Set(k, "1")
+	}
+	conn, err := c.hijack(ctx, "/containers/"+url.PathEscape(id)+"/attach", q, nil)
+	if err != nil {
+		return nil, err
+	}
+	if tty {
+		return conn, nil
+	}
+	pr, pw := io.Pipe()
+	go func() {
+		pw.CloseWithError(Demux(conn, pw, pw))
+	}()
+	return &demuxConn{Reader: pr, conn: conn}, nil
+}
+
+// demuxConn reads the demultiplexed output of a connection and writes to
+// the connection itself.
+type demuxConn struct {
+	io.Reader
+	conn net.Conn
+}
+
+func (c *demuxConn) Write(p []byte) (int, error) { return c.conn.Write(p) }
+func (c *demuxConn) Close() error                { return c.conn.Close() }
+
+// ResizeContainer changes the size of the TTY of a container.
+func (c *Client) ResizeContainer(ctx context.Context, id string, width, height int) error {
+	q := url.Values{}
+	q.Set("w", strconv.Itoa(width))
+	q.Set("h", strconv.Itoa(height))
+	return c.post(ctx, "/containers/"+url.PathEscape(id)+"/resize", q)
 }
 
 // ResizeExec changes the size of the TTY of an exec instance.

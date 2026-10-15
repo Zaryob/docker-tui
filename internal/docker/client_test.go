@@ -380,6 +380,52 @@ func TestExecSession(t *testing.T) {
 	}
 }
 
+func TestAttachContainer(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/containers/web/json":
+			writeJSON(w, map[string]any{"Config": map[string]any{"Tty": false, "OpenStdin": true}, "State": map[string]any{"Running": true}})
+		case "/containers/web/attach":
+			if q := r.URL.Query(); q.Get("stdin") != "1" || q.Get("stream") != "1" {
+				t.Errorf("query = %q", r.URL.RawQuery)
+			}
+			conn, buf, err := w.(http.Hijacker).Hijack()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer conn.Close()
+			buf.WriteString("HTTP/1.1 101 UPGRADED\r\nUpgrade: tcp\r\n\r\n")
+			buf.Write(frame(StreamStdout, "ready\n"))
+			buf.Flush()
+			line, _ := buf.ReadString('\n')
+			buf.Write(frame(StreamStderr, "echo "+line))
+			buf.Flush()
+		case "/containers/web/resize":
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	ctx := context.Background()
+	info, err := c.ContainerAttachInfo(ctx, "web")
+	if err != nil || info.Tty || !info.OpenStdin || !info.Running {
+		t.Fatalf("info = %+v, %v", info, err)
+	}
+	conn, err := c.AttachContainer(ctx, "web", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	io.WriteString(conn, "hi\n")
+	out, _ := io.ReadAll(conn)
+	if string(out) != "ready\necho hi\n" {
+		t.Errorf("output = %q", out)
+	}
+	if err := c.ResizeContainer(ctx, "web", 80, 24); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestStartExecError(t *testing.T) {
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusConflict)
