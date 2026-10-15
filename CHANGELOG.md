@@ -3,6 +3,19 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- Builds tab with the build history of BuildKit: status, steps, cache use and
+  duration; `enter` shows the logs of a build, `i` inspects it, `d` and
+  `P` remove records.
+- Build images with `b` from the Images or Builds tab, following the output
+  live.
+- Built-in terminal for running containers with `e`, rendered inside the
+  TUI through a terminal emulator; `ctrl+]` leaves it. The previous
+  full-screen shell moved to `E`.
+
 ## [0.3.0] - 2026-10-15
 
 ### Added
