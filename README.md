@@ -8,7 +8,9 @@ single static binary with no dependency on the Docker SDK.
 ## Features
 
 - Browse **containers**, **images**, **volumes** and **networks** in tabs
-- Start, stop, restart, kill, pause/unpause and remove containers
+- Start, stop, restart, kill, pause/unpause and remove containers, one at a
+  time or in bulk
+- Act on a whole **compose project** at once
 - Follow container **logs** in real time and search them
 - Live **stats**: CPU (with history), memory, network and block I/O
 - **Process list** of running containers, refreshed live
@@ -62,12 +64,7 @@ context selected with `DOCKER_CONTEXT` or `docker context use`,
 | `pgup`, `pgdn`, `g`, `G` | Page up/down, jump to top/bottom  |
 | `/`               | Filter the list (`enter` keeps, `esc` clears) |
 | `space` / `ctrl+a` | Mark the selected / all visible objects (`esc` clears) |
-
-Actions such as start, stop, restart, kill, pause and remove apply to all
-marked objects, or to the selected one when nothing is marked.
-
-| Key               | Action                                   |
-| ----------------- | ---------------------------------------- |
+| `C`               | Mark all containers of the selected compose project |
 | `o` / `O`         | Cycle sort column / reverse sort order   |
 | `r`               | Refresh                                  |
 | `enter`           | Show logs of the selected container      |
@@ -87,6 +84,9 @@ marked objects, or to the selected one when nothing is marked.
 | `esc`             | Close logs, stats or inspect             |
 | `?`               | Toggle full help                         |
 | `q`               | Quit                                     |
+
+Actions such as start, stop, restart, kill, pause and remove apply to all
+marked objects, or to the selected one when nothing is marked.
 
 ## Development
 

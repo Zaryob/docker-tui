@@ -140,6 +140,24 @@ func (a *App) killDialog() *confirmDialog {
 	}
 }
 
+// markProject marks every container of the compose project of the selected
+// container, so that the next action applies to the whole project.
+func (a *App) markProject() tea.Cmd {
+	t := a.current()
+	it, ok := t.selected()
+	if !ok {
+		return nil
+	}
+	project := it.data.(docker.Container).Labels[composeProjectLabel]
+	if project == "" {
+		return a.setStatus(it.name+" is not part of a compose project", true)
+	}
+	n := t.markWhere(func(it item) bool {
+		return it.data.(docker.Container).Labels[composeProjectLabel] == project
+	})
+	return a.setStatus(fmt.Sprintf("marked %s of project %s", countNoun(n, "containers"), project), false)
+}
+
 // togglePause pauses the targeted containers, or unpauses them if they are
 // all paused.
 func (a *App) togglePause() tea.Cmd {
@@ -185,6 +203,8 @@ func (a *App) containerKeys(msg tea.KeyMsg) tea.Cmd {
 		return a.objectAction("stopped", a.client.StopContainer)
 	case key.Matches(msg, keys.Restart):
 		return a.objectAction("restarted", a.client.RestartContainer)
+	case key.Matches(msg, keys.MarkProject):
+		return a.markProject()
 	case key.Matches(msg, keys.Kill):
 		a.confirm = a.killDialog()
 	case key.Matches(msg, keys.Pause):

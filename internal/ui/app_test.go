@@ -74,6 +74,27 @@ func TestBulkActionOnMarkedContainers(t *testing.T) {
 	}
 }
 
+func TestMarkProject(t *testing.T) {
+	a := newTestApp(t, http.NotFoundHandler())
+	t1 := a.current()
+	t1.setItems(containerItems(containersFixture()))
+	t1.table.SetCursor(1) // db, project shop
+	a.handleKey(keyRunes("C"))
+	if got := ids(t1.markedItems()); got != "a1,b2" {
+		t.Errorf("marked = %s, want a1,b2", got)
+	}
+	if a.status != "marked 2 containers of project shop" {
+		t.Errorf("status = %q", a.status)
+	}
+
+	t1.clearMarks()
+	t1.table.SetCursor(2) // cache, no project
+	a.handleKey(keyRunes("C"))
+	if len(t1.marked) != 0 || !a.statusErr {
+		t.Errorf("container without project: marked %v, status %q", t1.marked, a.status)
+	}
+}
+
 func TestBulkRemoveDialog(t *testing.T) {
 	a := newTestApp(t, http.NotFoundHandler())
 	t1 := a.current()
