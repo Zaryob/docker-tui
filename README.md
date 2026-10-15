@@ -19,6 +19,7 @@ single static binary with no dependency on the Docker SDK.
 - **Process list** of running containers, refreshed live
 - **CPU and memory** of every running container in the list, summed per
   compose project
+- **Copy files** to and from containers, like `docker cp`
 - **Pull** images with live progress per layer
 - **Build** images with BuildKit and browse the **build history** with its
   logs, like the Builds view of Docker Desktop
@@ -86,6 +87,7 @@ buildx) to be installed.
 | `t`               | Show live stats of the selected container |
 | `T`               | List the processes of the selected container |
 | `e`               | Open a terminal in the selected container (`ctrl+p ctrl+q` or `ctrl+]` leaves) |
+| `f`               | Copy files between the selected container and this machine, like `docker cp` |
 | `A`               | Attach to the main process of the selected container (`ctrl+p ctrl+q` or `ctrl+]` detaches) |
 | `E`               | Open a full-screen shell with the docker CLI |
 | `shift+↑/↓`, `ctrl+pgup/pgdn`, mouse wheel | In a terminal: scroll back through the output |

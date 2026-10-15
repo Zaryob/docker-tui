@@ -283,6 +283,8 @@ func (a *App) containerKeys(msg tea.KeyMsg) tea.Cmd {
 		return a.openLogs()
 	case key.Matches(msg, keys.Exec):
 		return a.openTerminal()
+	case key.Matches(msg, keys.Copy):
+		return a.openCopy()
 	case key.Matches(msg, keys.Attach):
 		return a.attachTerminal()
 	case key.Matches(msg, keys.ExecCLI):

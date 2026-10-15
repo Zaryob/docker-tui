@@ -42,6 +42,7 @@ type keyMap struct {
 	Attach      key.Binding
 	Build       key.Binding
 	Pull        key.Binding
+	Copy        key.Binding
 	Back        key.Binding
 	Help        key.Binding
 	Quit        key.Binding
@@ -81,6 +82,7 @@ var keys = keyMap{
 	Processes:   key.NewBinding(key.WithKeys("T"), key.WithHelp("T", "processes")),
 	Build:       key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "build image")),
 	Pull:        key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "pull image")),
+	Copy:        key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "copy files")),
 	Exec:        key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "terminal")),
 	Attach:      key.NewBinding(key.WithKeys("A"), key.WithHelp("A", "attach")),
 	ExecCLI:     key.NewBinding(key.WithKeys("E"), key.WithHelp("E", "full-screen shell")),
@@ -98,7 +100,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.Top, k.Bottom},
-		{k.ToggleAll, k.Logs, k.Inspect, k.Stats, k.Processes, k.Exec, k.Attach, k.ExecCLI, k.Build, k.Pull, k.Start, k.Stop, k.Restart, k.Kill, k.Pause, k.Remove, k.Prune},
+		{k.ToggleAll, k.Logs, k.Inspect, k.Stats, k.Processes, k.Exec, k.Attach, k.ExecCLI, k.Build, k.Pull, k.Copy, k.Start, k.Stop, k.Restart, k.Kill, k.Pause, k.Remove, k.Prune},
 		{k.NextTab, k.PrevTab, k.JumpTab},
 		{k.Mark, k.MarkAll, k.MarkProject, k.Collapse, k.Filter, k.ClearFilter, k.Sort, k.ReverseSort, k.CopyID, k.Refresh, k.Help, k.Quit},
 	}

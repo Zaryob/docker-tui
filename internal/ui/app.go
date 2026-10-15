@@ -441,6 +441,13 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.pane.close()
 		}
 		return a, a.startBuild(msg.opts)
+	case copyMsg:
+		if a.pane != nil {
+			a.pane.close()
+			a.pane = nil
+			a.layout()
+		}
+		return a, a.runCopy(msg)
 	case closePaneMsg:
 		if a.pane != nil {
 			a.pane.close()
