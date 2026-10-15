@@ -422,6 +422,18 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.pane != nil {
 			return a, a.pane.update(msg)
 		}
+	case termStartedMsg:
+		// A terminal closed before it connected leaves its session behind.
+		if a.pane == nil && msg.conn != nil {
+			msg.conn.Close()
+		}
+		if a.pane != nil {
+			return a, a.pane.update(msg)
+		}
+	case termOutputMsg, termEndedMsg:
+		if a.pane != nil {
+			return a, a.pane.update(msg)
+		}
 	case tea.KeyMsg:
 		return a, a.handleKey(msg)
 	}
@@ -440,6 +452,9 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		return a.handleFilterKey(msg)
 	}
 	if a.pane != nil {
+		if r, ok := a.pane.(rawInputPane); ok && r.rawInput() {
+			return a.pane.update(msg)
+		}
 		if c, ok := a.pane.(inputCapturer); ok && c.capturesInput() && msg.String() != "ctrl+c" {
 			return a.pane.update(msg)
 		}
@@ -539,6 +554,12 @@ type pane interface {
 // e.g. while a text input has focus.
 type inputCapturer interface {
 	capturesInput() bool
+}
+
+// rawInputPane is implemented by panes that need every key, ctrl+c
+// included, such as the terminal.
+type rawInputPane interface {
+	rawInput() bool
 }
 
 // keyMapper is implemented by panes with their own key bindings.

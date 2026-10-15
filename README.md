@@ -19,7 +19,8 @@ single static binary with no dependency on the Docker SDK.
 - **Process list** of running containers, refreshed live
 - **Build** images with BuildKit and browse the **build history** with its
   logs, like the Builds view of Docker Desktop
-- Open an interactive **shell** inside a running container
+- Built-in **terminal** for running containers, like the Exec tab of Docker
+  Desktop, or a full-screen shell through the docker CLI
 - **Inspect** any object as pretty-printed JSON
 - Incremental **filtering** and column **sorting**
 - **Prune** stopped containers, dangling images, unused volumes and networks
@@ -58,8 +59,11 @@ The daemon address is taken from, in order: the `-H`/`-host` flag, the
 `-context` flag, the `DOCKER_HOST` environment variable, the docker CLI
 context selected with `DOCKER_CONTEXT` or `docker context use`,
 `/var/run/docker.sock`, and finally the per-user sockets of Docker Desktop
-(`~/.docker/run/docker.sock`), Colima and rootless Docker. Opening a shell, building images and the build history require the
-`docker` CLI (with buildx) to be installed.
+(`~/.docker/run/docker.sock`), Colima and rootless Docker.
+
+The built-in terminal talks to the daemon directly. The full-screen shell,
+building images and the build history require the `docker` CLI (with
+buildx) to be installed.
 
 ## Key bindings
 
@@ -77,7 +81,8 @@ context selected with `DOCKER_CONTEXT` or `docker context use`,
 | `enter`           | Show logs of the selected or marked containers |
 | `t`               | Show live stats of the selected container |
 | `T`               | List the processes of the selected container |
-| `e`               | Open a shell in the selected container   |
+| `e`               | Open a terminal in the selected container (`ctrl+]` leaves) |
+| `E`               | Open a full-screen shell with the docker CLI |
 | `b`               | In images and builds: build an image     |
 | `enter`           | In builds: show the logs of the build    |
 | `i`               | Inspect the selected object              |

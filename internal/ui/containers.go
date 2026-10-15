@@ -268,6 +268,8 @@ func (a *App) containerKeys(msg tea.KeyMsg) tea.Cmd {
 	case key.Matches(msg, keys.Logs):
 		return a.openLogs()
 	case key.Matches(msg, keys.Exec):
+		return a.openTerminal()
+	case key.Matches(msg, keys.ExecCLI):
 		return a.execShell()
 	case key.Matches(msg, keys.Stats):
 		return a.openStats()
