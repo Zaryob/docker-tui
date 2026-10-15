@@ -56,17 +56,20 @@ func run() error {
 		return fmt.Errorf("unexpected arguments: %v", flag.Args())
 	}
 
+	var client *docker.Client
+	var err error
 	if contextName != "" {
 		if host != "" {
 			return errors.New("-host and -context cannot be used together")
 		}
-		var err error
-		if host, err = docker.ContextHost(contextName); err != nil {
+		var cfg docker.Config
+		if cfg, err = docker.ContextEndpoint(contextName); err != nil {
 			return err
 		}
+		client, err = docker.NewClientWithConfig(cfg)
+	} else {
+		client, err = docker.NewClient(host)
 	}
-
-	client, err := docker.NewClient(host)
 	if err != nil {
 		return err
 	}

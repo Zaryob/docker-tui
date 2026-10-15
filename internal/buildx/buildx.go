@@ -26,6 +26,9 @@ import (
 type CLI struct {
 	// Host is the daemon address passed to the CLI as DOCKER_HOST.
 	Host string
+	// Context, when set, is selected instead of passing Host, so that the
+	// CLI also uses its TLS material.
+	Context string
 	// Command creates the command to run; it defaults to exec.CommandContext
 	// with the docker binary found in PATH. Tests replace it.
 	Command func(ctx context.Context, args ...string) (*exec.Cmd, error)
@@ -48,7 +51,7 @@ func (c *CLI) command(ctx context.Context, args ...string) (*exec.Cmd, error) {
 		}
 		cmd = exec.CommandContext(ctx, bin, args...)
 	}
-	cmd.Env = Env(os.Environ(), c.Host)
+	cmd.Env = EnvFor(os.Environ(), c.Host, c.Context)
 	setProcessGroup(cmd)
 	// Do not wait for leftover processes holding the output open.
 	cmd.WaitDelay = 5 * time.Second
@@ -58,11 +61,18 @@ func (c *CLI) command(ctx context.Context, args ...string) (*exec.Cmd, error) {
 // Env returns environ with DOCKER_HOST set to host, so that the CLI talks to
 // the same daemon as docker-tui. A context selection, which could point
 // elsewhere, is dropped.
-func Env(environ []string, host string) []string {
+func Env(environ []string, host string) []string { return EnvFor(environ, host, "") }
+
+// EnvFor is like Env, but selects the CLI context ctxName instead of the
+// host when it is set.
+func EnvFor(environ []string, host, ctxName string) []string {
 	env := slices.DeleteFunc(slices.Clone(environ), func(kv string) bool {
 		return strings.HasPrefix(kv, "DOCKER_CONTEXT=") || strings.HasPrefix(kv, "DOCKER_HOST=")
 	})
-	if host != "" {
+	switch {
+	case ctxName != "":
+		env = append(env, "DOCKER_CONTEXT="+ctxName)
+	case host != "":
 		env = append(env, "DOCKER_HOST="+host)
 	}
 	return env

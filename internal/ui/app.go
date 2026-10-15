@@ -86,7 +86,7 @@ func New(client *docker.Client, opts Options) *App {
 		opts:   opts,
 		filter: fi,
 		client: client,
-		buildx: &buildx.CLI{Host: client.Host()},
+		buildx: &buildx.CLI{Host: client.Host(), Context: client.Context()},
 		tabs: []*tab{
 			newContainersTab(),
 			newImagesTab(),

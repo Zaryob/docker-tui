@@ -55,6 +55,7 @@ sudo make install   # installs to /usr/local/bin
 ```sh
 docker-tui                       # connect using $DOCKER_HOST, the current context or the default socket
 docker-tui -H tcp://10.0.0.5:2375
+docker-tui -H ssh://deploy@build-server
 docker-tui -context colima         # use the endpoint of a docker CLI context
 docker-tui -refresh 10s          # refresh lists every 10 seconds (0 disables)
 docker-tui -version
@@ -65,6 +66,15 @@ The daemon address is taken from, in order: the `-H`/`-host` flag, the
 context selected with `DOCKER_CONTEXT` or `docker context use`,
 `/var/run/docker.sock`, and finally the per-user sockets of Docker Desktop
 (`~/.docker/run/docker.sock`), Colima and rootless Docker.
+
+Remote daemons are supported the same way as in the docker CLI:
+
+- `tcp://` addresses use TLS when `DOCKER_TLS_VERIFY` is set, with `ca.pem`,
+  `cert.pem` and `key.pem` from `DOCKER_CERT_PATH` (default `~/.docker`), or
+  when the selected context has TLS material.
+- `ssh://[user@]host[:port]` connects through `ssh` and runs
+  `docker system dial-stdio` on the remote host, so your ssh keys, agent and
+  `~/.ssh/config` apply. The remote host needs the docker CLI.
 
 The built-in terminal talks to the daemon directly. The full-screen shell,
 building images and the build history require the `docker` CLI (with

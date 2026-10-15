@@ -9,6 +9,7 @@ package docker
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,6 +35,8 @@ type Client struct {
 	// dial opens a raw connection to the daemon, used for streams that
 	// take over the connection, such as interactive exec sessions.
 	dial func(ctx context.Context) (net.Conn, error)
+	// context is the docker CLI context of the configuration, if any.
+	context string
 }
 
 // NewClient returns a client for the daemon at host, which is either a
@@ -45,11 +48,34 @@ func NewClient(host string) (*Client, error) {
 		host = os.Getenv("DOCKER_HOST")
 	}
 	if host == "" {
-		var err error
-		if host, err = ContextHost(CurrentContext()); err != nil {
+		cfg, err := ContextEndpoint(CurrentContext())
+		if err != nil {
 			return nil, err
 		}
+		return NewClientWithConfig(cfg)
 	}
+	// Like the CLI, DOCKER_TLS_VERIFY applies to an explicit host too.
+	tlsCfg, err := TLSFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	return NewClientWithConfig(Config{Host: host, TLS: tlsCfg})
+}
+
+// Config describes how to reach a daemon.
+type Config struct {
+	// Host is a "unix://", "tcp://" or "ssh://" address.
+	Host string
+	// TLS, when set, secures tcp:// connections.
+	TLS *tls.Config
+	// Context is the docker CLI context the configuration comes from, if
+	// any; commands run through the CLI select it too.
+	Context string
+}
+
+// NewClientWithConfig returns a client for the daemon described by cfg.
+func NewClientWithConfig(cfg Config) (*Client, error) {
+	host := cfg.Host
 	u, err := url.Parse(host)
 	if err != nil {
 		return nil, fmt.Errorf("invalid docker host %q: %w", host, err)
@@ -68,29 +94,62 @@ func NewClient(host string) (*Client, error) {
 			var d net.Dialer
 			return d.DialContext(ctx, "unix", socket)
 		}
-		transport.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
-			return dial(ctx)
-		}
 	case "tcp", "http":
 		if u.Host == "" {
 			return nil, fmt.Errorf("invalid docker host %q: missing address", host)
 		}
-		base = "http://" + u.Host
 		addr := u.Host
-		dial = func(ctx context.Context) (net.Conn, error) {
-			var d net.Dialer
-			return d.DialContext(ctx, "tcp", addr)
+		if u.Port() == "" {
+			port := "2375"
+			if cfg.TLS != nil {
+				port = "2376"
+			}
+			addr = net.JoinHostPort(u.Hostname(), port)
 		}
+		if cfg.TLS != nil {
+			base = "https://" + addr
+			tc := cfg.TLS.Clone()
+			if tc.ServerName == "" {
+				tc.ServerName = u.Hostname()
+			}
+			transport.TLSClientConfig = tc
+			dial = func(ctx context.Context) (net.Conn, error) {
+				d := tls.Dialer{Config: tc}
+				return d.DialContext(ctx, "tcp", addr)
+			}
+		} else {
+			base = "http://" + addr
+			dial = func(ctx context.Context) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, "tcp", addr)
+			}
+		}
+	case "ssh":
+		args, err := sshArgs(u)
+		if err != nil {
+			return nil, fmt.Errorf("invalid docker host %q: %w", host, err)
+		}
+		dial = func(context.Context) (net.Conn, error) { return dialSSH(args) }
 	default:
-		return nil, fmt.Errorf("unsupported docker host %q: only unix:// and tcp:// are supported", host)
+		return nil, fmt.Errorf("unsupported docker host %q: only unix://, tcp:// and ssh:// are supported", host)
+	}
+	if u.Scheme != "tcp" && u.Scheme != "http" {
+		transport.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return dial(ctx)
+		}
 	}
 	return &Client{
-		http: &http.Client{Transport: transport},
-		base: base,
-		host: host,
-		dial: dial,
+		http:    &http.Client{Transport: transport},
+		base:    base,
+		host:    host,
+		dial:    dial,
+		context: cfg.Context,
 	}, nil
 }
+
+// Context returns the docker CLI context the client was configured from, or
+// "" when it was given an address.
+func (c *Client) Context() string { return c.context }
 
 // defaultHost returns DefaultHost, unless its socket does not exist and one
 // of the well-known per-user sockets does (Docker Desktop, Colima, rootless

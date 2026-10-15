@@ -39,7 +39,7 @@ func (a *App) execShell() tea.Cmd {
 	cmd := exec.Command(bin, "exec", "-it", it.id, "sh", "-c", shellScript)
 	// Make the CLI talk to the same daemon as we do. DOCKER_HOST already
 	// identifies it, so drop a context selection that could conflict.
-	cmd.Env = buildx.Env(os.Environ(), a.client.Host())
+	cmd.Env = buildx.EnvFor(os.Environ(), a.client.Host(), a.client.Context())
 	name := it.name
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		return execDoneMsg{name: name, err: err}

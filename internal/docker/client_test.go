@@ -46,7 +46,7 @@ func TestNewClientHosts(t *testing.T) {
 		{"unix://", true},
 		{"tcp://", true},
 		{"npipe:////./pipe/docker_engine", true},
-		{"ssh://user@host", true},
+		{"npipe:////./pipe/docker_engine", true},
 	}
 	for _, tt := range tests {
 		_, err := NewClient(tt.host)
