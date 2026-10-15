@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -144,7 +145,10 @@ func (a *App) objectAction(verb string, fn actionFunc) tea.Cmd {
 	return a.itemsAction(verb, a.targets(), fn)
 }
 
-// itemsAction runs fn against items one after the other and reports the
+// bulkConcurrency limits how many objects a bulk action handles at once.
+const bulkConcurrency = 8
+
+// itemsAction runs fn against items, several at a time, and reports the
 // outcome as an actionMsg. The marks of the active tab are cleared, since
 // they have been used.
 func (a *App) itemsAction(verb string, items []item, fn actionFunc) tea.Cmd {
@@ -156,13 +160,29 @@ func (a *App) itemsAction(verb string, items []item, fn actionFunc) tea.Cmd {
 	a.busy++
 	kind, noun := t.kind, t.noun
 	return func() tea.Msg {
+		// Stopping a container can take the whole grace period, so the
+		// objects are handled concurrently. Errors keep the list order.
+		results := make([]error, len(items))
+		sem := make(chan struct{}, bulkConcurrency)
+		var wg sync.WaitGroup
+		for i, it := range items {
+			wg.Add(1)
+			sem <- struct{}{}
+			go func() {
+				defer func() { <-sem; wg.Done() }()
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				if err := fn(ctx, it.id); err != nil {
+					results[i] = fmt.Errorf("%s %s: %w", verb, it.name, err)
+				}
+			}()
+		}
+		wg.Wait()
 		var errs []error
-		for _, it := range items {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			if err := fn(ctx, it.id); err != nil {
-				errs = append(errs, fmt.Errorf("%s %s: %w", verb, it.name, err))
+		for _, err := range results {
+			if err != nil {
+				errs = append(errs, err)
 			}
-			cancel()
 		}
 		return actionMsg{kind: kind, status: actionStatus(verb, noun, items, errs), err: actionError(verb, noun, len(items), errs)}
 	}

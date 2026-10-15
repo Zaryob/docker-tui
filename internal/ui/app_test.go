@@ -7,7 +7,9 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -38,9 +40,14 @@ func containersFixture() []docker.Container {
 }
 
 func TestBulkActionOnMarkedContainers(t *testing.T) {
-	var got []string
+	var (
+		mu  sync.Mutex
+		got []string
+	)
 	a := newTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
 		got = append(got, r.Method+" "+r.URL.Path)
+		mu.Unlock()
 		if strings.Contains(r.URL.Path, "/b2/") {
 			w.WriteHeader(http.StatusConflict)
 			w.Write([]byte(`{"message":"cannot stop db"}`))
@@ -56,6 +63,7 @@ func TestBulkActionOnMarkedContainers(t *testing.T) {
 	t1.table.SetCursor(2)
 
 	msg := a.handleKey(keyRunes("x"))().(actionMsg)
+	sort.Strings(got)
 	if strings.Join(got, ",") != "POST /containers/a1/stop,POST /containers/b2/stop" {
 		t.Errorf("requests = %v", got)
 	}
