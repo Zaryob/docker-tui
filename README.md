@@ -16,7 +16,7 @@ single static binary with no dependency on the Docker SDK.
 - **Inspect** any object as pretty-printed JSON
 - Incremental **filtering** and column **sorting**
 - **Prune** stopped containers, dangling images, unused volumes and networks
-- Automatic refresh of the visible list
+- Lists update instantly on daemon events, plus a periodic refresh
 - Works with local sockets, Docker Desktop, Colima, rootless Docker and
   remote daemons over TCP
 

@@ -278,6 +278,38 @@ func TestTop(t *testing.T) {
 	}
 }
 
+func TestEvents(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/events" {
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("filters"); got != `{"type":["container","image"]}` {
+			t.Errorf("filters = %q", got)
+		}
+		writeJSON(w, map[string]any{"Type": "container", "Action": "start", "Actor": map[string]any{"ID": "abc"}})
+		writeJSON(w, map[string]any{"Type": "image", "Action": "delete", "Actor": map[string]any{"ID": "sha256:1"}})
+	}))
+	s, err := c.Events(context.Background(), "container", "image")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	var got []string
+	for {
+		ev, err := s.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, ev.Type+" "+ev.Action+" "+ev.Actor.ID)
+	}
+	if want := "container start abc,image delete sha256:1"; strings.Join(got, ",") != want {
+		t.Errorf("events = %q, want %q", got, want)
+	}
+}
+
 func TestPrune(t *testing.T) {
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/images/prune" {

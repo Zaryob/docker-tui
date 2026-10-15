@@ -52,6 +52,9 @@ type App struct {
 	statusErr bool
 	statusSeq int
 
+	// events delivers the tabs affected by daemon events.
+	events chan tabKind
+
 	width  int
 	height int
 }
@@ -197,7 +200,12 @@ func (a *App) load(kind tabKind) tea.Cmd {
 
 // Init implements tea.Model.
 func (a *App) Init() tea.Cmd {
-	return tea.Batch(a.loadVersion, a.load(tabContainers), a.spinner.Tick, a.refreshTick())
+	// Daemon events keep the lists up to date as soon as something changes;
+	// the periodic refresh still updates relative times such as "Up 5
+	// minutes". The watcher runs until the program exits.
+	a.events = make(chan tabKind, 64)
+	go watchEvents(context.Background(), a.client, a.events)
+	return tea.Batch(a.loadVersion, a.load(tabContainers), a.spinner.Tick, a.refreshTick(), waitEvents(a.events))
 }
 
 func (a *App) handleFilterKey(msg tea.KeyMsg) tea.Cmd {
@@ -266,6 +274,14 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, tea.Batch(a.setStatus(fmt.Sprintf("exec %s: %v", msg.name, msg.err), true), a.load(tabContainers))
 		}
 		return a, a.load(tabContainers)
+	case eventsMsg:
+		cmds := []tea.Cmd{waitEvents(a.events)}
+		for kind := range msg.kinds {
+			if a.tabs[kind].loaded {
+				cmds = append(cmds, a.load(kind))
+			}
+		}
+		return a, tea.Batch(cmds...)
 	case refreshTickMsg:
 		// Only refresh the list that is visible; panes and dialogs keep
 		// their own state.
