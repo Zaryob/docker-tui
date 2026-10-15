@@ -134,9 +134,22 @@ func (a *App) targets() []item {
 		return marked
 	}
 	if it, ok := t.selected(); ok {
+		if it.isGroup() {
+			return it.members
+		}
 		return []item{it}
 	}
 	return nil
+}
+
+// selectedObject returns the object under the cursor; group rows, which
+// stand for several objects, are not returned.
+func (a *App) selectedObject() (item, bool) {
+	it, ok := a.current().selected()
+	if !ok || it.isGroup() {
+		return item{}, false
+	}
+	return it, true
 }
 
 // objectAction runs fn against the targets of the active tab and reports
@@ -602,7 +615,7 @@ func (a *App) statusLine() string {
 	default:
 		text := countNoun(len(t.all), t.noun)
 		if t.filter != "" {
-			text = fmt.Sprintf("%d of %s matching %q", len(t.items), text, t.filter)
+			text = fmt.Sprintf("%d of %s matching %q", len(t.visible), text, t.filter)
 		}
 		if n := len(t.marked); n > 0 {
 			text += fmt.Sprintf(" · %d marked", n)

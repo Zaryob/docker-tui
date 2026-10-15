@@ -34,7 +34,7 @@ var inspectGen int
 // openInspect opens the inspect view for the selected object.
 func (a *App) openInspect() tea.Cmd {
 	t := a.current()
-	it, ok := t.selected()
+	it, ok := a.selectedObject()
 	if !ok {
 		return nil
 	}

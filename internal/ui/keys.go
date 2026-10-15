@@ -23,6 +23,7 @@ type keyMap struct {
 	Mark        key.Binding
 	MarkAll     key.Binding
 	MarkProject key.Binding
+	Collapse    key.Binding
 	ToggleAll   key.Binding
 	Start       key.Binding
 	Stop        key.Binding
@@ -60,6 +61,7 @@ var keys = keyMap{
 	Mark:        key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "mark")),
 	MarkAll:     key.NewBinding(key.WithKeys("ctrl+a"), key.WithHelp("ctrl+a", "mark all")),
 	MarkProject: key.NewBinding(key.WithKeys("C"), key.WithHelp("C", "mark project")),
+	Collapse:    key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "fold project")),
 	ToggleAll:   key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "toggle stopped")),
 	Start:       key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start")),
 	Stop:        key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "stop")),
@@ -90,7 +92,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.Top, k.Bottom},
 		{k.ToggleAll, k.Logs, k.Inspect, k.Stats, k.Processes, k.Exec, k.Start, k.Stop, k.Restart, k.Kill, k.Pause, k.Remove, k.Prune},
 		{k.NextTab, k.PrevTab, k.JumpTab},
-		{k.Mark, k.MarkAll, k.MarkProject, k.Filter, k.ClearFilter, k.Sort, k.ReverseSort, k.CopyID, k.Refresh, k.Help, k.Quit},
+		{k.Mark, k.MarkAll, k.MarkProject, k.Collapse, k.Filter, k.ClearFilter, k.Sort, k.ReverseSort, k.CopyID, k.Refresh, k.Help, k.Quit},
 	}
 }
 

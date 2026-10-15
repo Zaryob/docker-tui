@@ -19,6 +19,7 @@ import (
 )
 
 const (
+	containerNameCol   = 1
 	containerStateCol  = 4
 	containerStatusCol = 5
 
@@ -51,12 +52,87 @@ func newContainersTab() *tab {
 		Column{Title: "PORTS", Grow: 2},
 	)
 	t.table.SetCellStyle(func(col int, value string) (lipgloss.Style, bool) {
-		if col == containerStateCol {
+		switch col {
+		case containerStateCol:
 			return stateStyle(value)
+		case containerNameCol:
+			if strings.HasPrefix(value, groupOpen) || strings.HasPrefix(value, groupClosed) {
+				return groupStyle, true
+			}
 		}
 		return lipgloss.Style{}, false
 	})
+	t.group = &grouping{
+		key:        containerProject,
+		nameCol:    containerNameCol,
+		memberName: composeMemberName,
+		row:        projectRow,
+	}
 	return t
+}
+
+// Markers in front of the name of a compose project row.
+const (
+	groupOpen   = "▾ "
+	groupClosed = "▸ "
+)
+
+var groupStyle = lipgloss.NewStyle().Bold(true)
+
+// containerProject returns the compose project of a container or of a
+// project row, or "" for a standalone container.
+func containerProject(it item) string {
+	if it.isGroup() {
+		return strings.TrimPrefix(it.id, groupIDPrefix)
+	}
+	c, _ := it.data.(docker.Container)
+	return c.Labels[composeProjectLabel]
+}
+
+// composeMemberName shortens the name of a container inside its project row,
+// e.g. "shop-web-1" becomes "web-1" like in Docker Desktop.
+func composeMemberName(it item, project string) string {
+	if short := strings.TrimPrefix(it.name, project+"-"); short != "" {
+		return short
+	}
+	return it.name
+}
+
+// projectRow summarizes the containers of a compose project: it is shown as
+// running while any of them runs, with the number of running containers as
+// status.
+func projectRow(project string, members []item, collapsed bool) item {
+	running, state := 0, ""
+	var ports []string
+	for _, m := range members {
+		c := m.data.(docker.Container)
+		if c.State == "running" {
+			running++
+		}
+		if state == "" || c.State == "running" {
+			state = c.State
+		}
+		if p := m.cells[len(m.cells)-1]; p != "" {
+			ports = append(ports, p)
+		}
+	}
+	marker := groupOpen
+	if collapsed {
+		marker = groupClosed
+	}
+	return item{
+		name: project,
+		cells: []string{
+			"",
+			marker + project,
+			project,
+			"",
+			state,
+			fmt.Sprintf("%d/%d running", running, len(members)),
+			strings.Join(ports, ", "),
+		},
+		members: members,
+	}
 }
 
 func (a *App) loadContainers() tea.Msg {
@@ -148,12 +224,12 @@ func (a *App) markProject() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	project := it.data.(docker.Container).Labels[composeProjectLabel]
+	project := containerProject(it)
 	if project == "" {
 		return a.setStatus(it.name+" is not part of a compose project", true)
 	}
 	n := t.markWhere(func(it item) bool {
-		return it.data.(docker.Container).Labels[composeProjectLabel] == project
+		return containerProject(it) == project
 	})
 	return a.setStatus(fmt.Sprintf("marked %s of project %s", countNoun(n, "containers"), project), false)
 }
@@ -203,6 +279,8 @@ func (a *App) containerKeys(msg tea.KeyMsg) tea.Cmd {
 		return a.objectAction("stopped", a.client.StopContainer)
 	case key.Matches(msg, keys.Restart):
 		return a.objectAction("restarted", a.client.RestartContainer)
+	case key.Matches(msg, keys.Collapse):
+		a.current().toggleCollapse()
 	case key.Matches(msg, keys.MarkProject):
 		return a.markProject()
 	case key.Matches(msg, keys.Kill):

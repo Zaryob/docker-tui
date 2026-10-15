@@ -48,7 +48,7 @@ type topTickMsg struct{ gen int }
 
 // openTop opens the process list of the selected container.
 func (a *App) openTop() tea.Cmd {
-	it, ok := a.current().selected()
+	it, ok := a.selectedObject()
 	if !ok {
 		return nil
 	}

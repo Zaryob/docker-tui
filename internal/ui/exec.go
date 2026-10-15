@@ -26,7 +26,7 @@ type execDoneMsg struct {
 // execShell suspends the TUI and opens an interactive shell in the selected
 // container using the docker CLI.
 func (a *App) execShell() tea.Cmd {
-	it, ok := a.current().selected()
+	it, ok := a.selectedObject()
 	if !ok {
 		return nil
 	}

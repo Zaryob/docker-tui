@@ -55,7 +55,7 @@ type statsTickMsg struct{ gen int }
 
 // openStats opens the stats view for the selected container.
 func (a *App) openStats() tea.Cmd {
-	it, ok := a.current().selected()
+	it, ok := a.selectedObject()
 	if !ok {
 		return nil
 	}

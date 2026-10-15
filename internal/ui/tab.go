@@ -4,6 +4,7 @@
 package ui
 
 import (
+	"slices"
 	"sort"
 	"strings"
 )
@@ -26,6 +27,24 @@ type item struct {
 	// sorting, e.g. to sort sizes numerically.
 	sortKeys []string
 	data     any
+	// members is set on group rows and holds the objects of the group.
+	members []item
+}
+
+// isGroup reports whether the item is a group row rather than an object.
+func (it item) isGroup() bool { return it.members != nil }
+
+// grouping folds objects sharing a key, e.g. the containers of a compose
+// project, under a collapsible group row.
+type grouping struct {
+	// key returns the group of an object, or "" for none.
+	key func(item) string
+	// nameCol is the column indented for the members of a group.
+	nameCol int
+	// memberName returns the name shown for a member of group key.
+	memberName func(it item, key string) string
+	// row builds the group row for the visible members of group key.
+	row func(key string, members []item, collapsed bool) item
 }
 
 func (it item) sortKey(col int) string {
@@ -61,10 +80,17 @@ type tab struct {
 	loadErr  error
 	// marked holds the IDs of the objects marked for a bulk action.
 	marked map[string]bool
+	// visible holds the objects matching the filter, in display order and
+	// including the members of collapsed groups.
+	visible []item
+	// group, when set, groups the rows; collapsed holds the keys of the
+	// collapsed groups.
+	group     *grouping
+	collapsed map[string]bool
 }
 
 func newTab(kind tabKind, title, noun string, columns ...Column) *tab {
-	return &tab{kind: kind, title: title, noun: noun, table: NewTable(columns...), sortCol: -1, marked: map[string]bool{}}
+	return &tab{kind: kind, title: title, noun: noun, table: NewTable(columns...), sortCol: -1, marked: map[string]bool{}, collapsed: map[string]bool{}}
 }
 
 // setItems replaces the items of the tab.
@@ -90,7 +116,18 @@ func (t *tab) toggleMark() {
 	if !ok {
 		return
 	}
-	if t.marked[it.id] {
+	if it.isGroup() {
+		// Marking a group marks all its members, or unmarks them if they
+		// are all marked already.
+		all := allMarked(it.members, t.marked)
+		for _, m := range it.members {
+			if all {
+				delete(t.marked, m.id)
+			} else {
+				t.marked[m.id] = true
+			}
+		}
+	} else if t.marked[it.id] {
 		delete(t.marked, it.id)
 	} else {
 		t.marked[it.id] = true
@@ -98,14 +135,51 @@ func (t *tab) toggleMark() {
 	t.refresh()
 }
 
+func allMarked(items []item, marked map[string]bool) bool {
+	for _, it := range items {
+		if !marked[it.id] {
+			return false
+		}
+	}
+	return len(items) > 0
+}
+
+// toggleCollapse collapses or expands the group under the cursor, or the
+// group of the selected object, which then moves the cursor to the group.
+func (t *tab) toggleCollapse() {
+	if t.group == nil {
+		return
+	}
+	it, ok := t.selected()
+	if !ok {
+		return
+	}
+	key := t.group.key(it)
+	if it.isGroup() {
+		key = strings.TrimPrefix(it.id, groupIDPrefix)
+	}
+	if key == "" {
+		return
+	}
+	if t.collapsed[key] {
+		delete(t.collapsed, key)
+	} else {
+		t.collapsed[key] = true
+	}
+	t.refresh()
+	for i, row := range t.items {
+		if row.id == groupIDPrefix+key {
+			t.table.SetCursor(i)
+			break
+		}
+	}
+}
+
 // markAll marks every visible object, or unmarks them if all of them are
 // already marked.
 func (t *tab) markAll() {
-	all := len(t.items) > 0
-	for _, it := range t.items {
-		all = all && t.marked[it.id]
-	}
-	for _, it := range t.items {
+	all := allMarked(t.visible, t.marked)
+	for _, it := range t.visible {
 		if all {
 			delete(t.marked, it.id)
 		} else {
@@ -187,6 +261,9 @@ func (it item) matches(filter string) bool {
 		return true
 	}
 	filter = strings.ToLower(filter)
+	if strings.Contains(strings.ToLower(it.name), filter) {
+		return true
+	}
 	for _, c := range it.cells {
 		if strings.Contains(strings.ToLower(c), filter) {
 			return true
@@ -215,12 +292,20 @@ func (t *tab) refresh() {
 			return a < b
 		})
 	}
+	t.visible = items
+	if t.group != nil {
+		items = t.groupRows(items)
+	}
 	t.items = items
 	rows := make([][]string, len(items))
 	marks := make([]bool, len(items))
 	for i, it := range items {
 		rows[i] = it.cells
-		marks[i] = t.marked[it.id]
+		if it.isGroup() {
+			marks[i] = allMarked(it.members, t.marked)
+		} else {
+			marks[i] = t.marked[it.id]
+		}
 	}
 	t.table.SetRows(rows)
 	t.table.SetMarks(marks)
@@ -232,6 +317,48 @@ func (t *tab) refresh() {
 			}
 		}
 	}
+}
+
+// groupIDPrefix starts the IDs of group rows, keeping them apart from the
+// IDs of objects.
+const groupIDPrefix = "group:"
+
+// groupRows inserts a group row before the members of every group, at the
+// position of its first member, and hides the members of collapsed groups.
+func (t *tab) groupRows(items []item) []item {
+	g := t.group
+	members := map[string][]item{}
+	for _, it := range items {
+		if k := g.key(it); k != "" {
+			members[k] = append(members[k], it)
+		}
+	}
+	out := make([]item, 0, len(items)+len(members))
+	for _, it := range items {
+		k := g.key(it)
+		if k == "" {
+			out = append(out, it)
+			continue
+		}
+		ms, first := members[k]
+		if !first {
+			continue // already emitted with its group
+		}
+		delete(members, k)
+		row := g.row(k, ms, t.collapsed[k])
+		row.id = groupIDPrefix + k
+		out = append(out, row)
+		if t.collapsed[k] {
+			continue
+		}
+		for _, m := range ms {
+			cells := slices.Clone(m.cells)
+			cells[g.nameCol] = "  " + g.memberName(m, k)
+			m.cells = cells
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 // selected returns the item under the cursor.

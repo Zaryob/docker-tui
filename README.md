@@ -10,7 +10,8 @@ single static binary with no dependency on the Docker SDK.
 - Browse **containers**, **images**, **volumes** and **networks** in tabs
 - Start, stop, restart, kill, pause/unpause and remove containers, one at a
   time or in bulk
-- Act on a whole **compose project** at once
+- Containers of a **compose project** are grouped under a foldable project
+  row, like in Docker Desktop; actions on the row apply to the whole project
 - Follow container **logs** in real time and search them, also merged for
   several containers such as a compose project
 - Live **stats**: CPU (with history), memory, network and block I/O
@@ -66,6 +67,7 @@ context selected with `DOCKER_CONTEXT` or `docker context use`,
 | `/`               | Filter the list (`enter` keeps, `esc` clears) |
 | `space` / `ctrl+a` | Mark the selected / all visible objects (`esc` clears) |
 | `C`               | Mark all containers of the selected compose project |
+| `c`               | Fold or unfold the selected compose project |
 | `o` / `O`         | Cycle sort column / reverse sort order   |
 | `r`               | Refresh                                  |
 | `enter`           | Show logs of the selected or marked containers |

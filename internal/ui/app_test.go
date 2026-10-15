@@ -57,10 +57,11 @@ func TestBulkActionOnMarkedContainers(t *testing.T) {
 	}))
 	t1 := a.current()
 	t1.setItems(containerItems(containersFixture()))
+	selectID(t, t1, "a1")
 	t1.toggleMark() // web
-	t1.table.SetCursor(1)
+	selectID(t, t1, "b2")
 	t1.toggleMark() // db
-	t1.table.SetCursor(2)
+	selectID(t, t1, "c3")
 
 	msg := a.handleKey(keyRunes("x"))().(actionMsg)
 	sort.Strings(got)
@@ -86,7 +87,7 @@ func TestMarkProject(t *testing.T) {
 	a := newTestApp(t, http.NotFoundHandler())
 	t1 := a.current()
 	t1.setItems(containerItems(containersFixture()))
-	t1.table.SetCursor(1) // db, project shop
+	selectID(t, t1, "b2") // db, project shop
 	a.handleKey(keyRunes("C"))
 	if got := ids(t1.markedItems()); got != "a1,b2" {
 		t.Errorf("marked = %s, want a1,b2", got)
@@ -96,7 +97,7 @@ func TestMarkProject(t *testing.T) {
 	}
 
 	t1.clearMarks()
-	t1.table.SetCursor(2) // cache, no project
+	selectID(t, t1, "c3") // cache, no project
 	a.handleKey(keyRunes("C"))
 	if len(t1.marked) != 0 || !a.statusErr {
 		t.Errorf("container without project: marked %v, status %q", t1.marked, a.status)
@@ -107,7 +108,7 @@ func TestOpenLogsOfMarkedContainers(t *testing.T) {
 	a := newTestApp(t, http.NotFoundHandler())
 	t1 := a.current()
 	t1.setItems(containerItems(containersFixture()))
-	t1.table.SetCursor(1)
+	selectID(t, t1, "b2")
 	a.handleKey(keyRunes("C"))
 	a.openLogs()
 	l, ok := a.pane.(*logView)
@@ -161,6 +162,79 @@ func TestDescribeItems(t *testing.T) {
 	}
 	if got := describeItems(items[:1], "images"); got != "a" {
 		t.Errorf("single item = %q", got)
+	}
+}
+
+// selectID moves the cursor of tb to the row of the object with id.
+func selectID(t *testing.T, tb *tab, id string) {
+	t.Helper()
+	for i, it := range tb.items {
+		if it.id == id {
+			tb.table.SetCursor(i)
+			return
+		}
+	}
+	t.Fatalf("no row with id %s", id)
+}
+
+func TestComposeProjectRows(t *testing.T) {
+	a := newTestApp(t, http.NotFoundHandler())
+	t1 := a.current()
+	t1.setItems(containerItems(containersFixture()))
+	names := func() string {
+		var out []string
+		for _, it := range t1.items {
+			out = append(out, it.cells[containerNameCol])
+		}
+		return strings.Join(out, "|")
+	}
+	if got := names(); got != "▾ shop|  web|  db|cache" {
+		t.Fatalf("rows = %q", got)
+	}
+	group := t1.items[0]
+	if group.cells[containerStateCol] != "running" || group.cells[containerStatusCol] != "2/2 running" {
+		t.Errorf("project row = %q", group.cells)
+	}
+
+	// Actions on the project row apply to all its containers.
+	selectID(t, t1, groupIDPrefix+"shop")
+	if got := ids(a.targets()); got != "a1,b2" {
+		t.Errorf("targets of the project row = %s", got)
+	}
+	if _, ok := a.selectedObject(); ok {
+		t.Error("project row returned as a single object")
+	}
+	if a.handleKey(keyRunes("i")) != nil || a.pane != nil {
+		t.Error("inspect opened for a project row")
+	}
+	t1.toggleMark()
+	if got := ids(t1.markedItems()); got != "a1,b2" {
+		t.Errorf("marking the project row marked %s", got)
+	}
+	t1.clearMarks()
+
+	// Folding hides the members and keeps the cursor on the project; it
+	// works from a member too.
+	selectID(t, t1, "b2")
+	a.handleKey(keyRunes("c"))
+	if got := names(); got != "▸ shop|cache" {
+		t.Errorf("collapsed rows = %q", got)
+	}
+	if it, _ := t1.selected(); it.id != groupIDPrefix+"shop" {
+		t.Errorf("cursor on %q after folding", it.id)
+	}
+	// Filtering and marking still see the folded containers.
+	t1.markAll()
+	if got := ids(t1.markedItems()); got != "a1,b2,c3" {
+		t.Errorf("mark all = %s", got)
+	}
+	a.handleKey(keyRunes("c"))
+	if got := names(); got != "▾ shop|  web|  db|cache" {
+		t.Errorf("expanded rows = %q", got)
+	}
+	t1.setFilter("db")
+	if got := names(); got != "▾ shop|  db" {
+		t.Errorf("filtered rows = %q", got)
 	}
 }
 

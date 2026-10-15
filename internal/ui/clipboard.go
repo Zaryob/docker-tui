@@ -12,7 +12,7 @@ import (
 // copyID copies the full ID (or name, for volumes) of the selected object to
 // the clipboard.
 func (a *App) copyID() tea.Cmd {
-	it, ok := a.current().selected()
+	it, ok := a.selectedObject()
 	if !ok {
 		return nil
 	}
