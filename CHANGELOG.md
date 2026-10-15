@@ -3,6 +3,20 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.0] - 2026-10-15
+
+### Added
+
+- TLS connections to `tcp://` daemons: `DOCKER_TLS_VERIFY`,
+  `DOCKER_CERT_PATH` and `DOCKER_TLS` work like in the docker CLI, and
+  contexts with TLS material are used with their certificates. The default
+  port is 2376 with TLS and 2375 without.
+- `ssh://[user@]host[:port]` daemons, through `ssh` and
+  `docker system dial-stdio` on the remote host; ssh errors such as a
+  denied key are shown as they are.
+- Builds and the full-screen shell select the same context as docker-tui,
+  so they also reach TLS and ssh daemons.
+
 ## [0.5.0] - 2026-10-15
 
 ### Added
