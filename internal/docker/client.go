@@ -35,13 +35,17 @@ type Client struct {
 
 // NewClient returns a client for the daemon at host, which is either a
 // "unix://" socket path or a "tcp://" address. An empty host falls back to
-// the DOCKER_HOST environment variable and then to DefaultHost.
+// the DOCKER_HOST environment variable, then to the endpoint of the current
+// docker CLI context and finally to DefaultHost.
 func NewClient(host string) (*Client, error) {
 	if host == "" {
 		host = os.Getenv("DOCKER_HOST")
 	}
 	if host == "" {
-		host = defaultHost()
+		var err error
+		if host, err = ContextHost(CurrentContext()); err != nil {
+			return nil, err
+		}
 	}
 	u, err := url.Parse(host)
 	if err != nil {

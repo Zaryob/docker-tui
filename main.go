@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -31,11 +32,13 @@ func main() {
 func run() error {
 	var (
 		host        string
+		contextName string
 		refresh     time.Duration
 		showVersion bool
 	)
 	flag.StringVar(&host, "host", "", "Docker daemon address (default $DOCKER_HOST or "+docker.DefaultHost+")")
 	flag.StringVar(&host, "H", "", "shorthand for -host")
+	flag.StringVar(&contextName, "context", "", "docker CLI context to use (default $DOCKER_CONTEXT or the current context)")
 	flag.DurationVar(&refresh, "refresh", 3*time.Second, "interval for refreshing lists, 0 disables")
 	flag.BoolVar(&showVersion, "version", false, "print version and exit")
 	flag.Usage = func() {
@@ -51,6 +54,16 @@ func run() error {
 	if flag.NArg() > 0 {
 		flag.Usage()
 		return fmt.Errorf("unexpected arguments: %v", flag.Args())
+	}
+
+	if contextName != "" {
+		if host != "" {
+			return errors.New("-host and -context cannot be used together")
+		}
+		var err error
+		if host, err = docker.ContextHost(contextName); err != nil {
+			return err
+		}
 	}
 
 	client, err := docker.NewClient(host)

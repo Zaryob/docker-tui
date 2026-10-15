@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -36,8 +38,12 @@ func (a *App) execShell() tea.Cmd {
 		return a.setStatus("docker CLI not found in PATH; it is required for exec", true)
 	}
 	cmd := exec.Command(bin, "exec", "-it", it.id, "sh", "-c", shellScript)
-	// Make the CLI talk to the same daemon as we do.
-	cmd.Env = append(os.Environ(), "DOCKER_HOST="+a.client.Host())
+	// Make the CLI talk to the same daemon as we do. DOCKER_HOST already
+	// identifies it, so drop a context selection that could conflict.
+	env := slices.DeleteFunc(os.Environ(), func(kv string) bool {
+		return strings.HasPrefix(kv, "DOCKER_CONTEXT=") || strings.HasPrefix(kv, "DOCKER_HOST=")
+	})
+	cmd.Env = append(env, "DOCKER_HOST="+a.client.Host())
 	name := it.name
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		return execDoneMsg{name: name, err: err}

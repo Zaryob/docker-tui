@@ -40,16 +40,18 @@ sudo make install   # installs to /usr/local/bin
 ## Usage
 
 ```sh
-docker-tui                       # connect using $DOCKER_HOST or the default socket
+docker-tui                       # connect using $DOCKER_HOST, the current context or the default socket
 docker-tui -H tcp://10.0.0.5:2375
+docker-tui -context colima         # use the endpoint of a docker CLI context
 docker-tui -refresh 10s          # refresh lists every 10 seconds (0 disables)
 docker-tui -version
 ```
 
 The daemon address is taken from, in order: the `-H`/`-host` flag, the
-`DOCKER_HOST` environment variable, `/var/run/docker.sock`, and finally the
-per-user sockets of Docker Desktop (`~/.docker/run/docker.sock`), Colima and
-rootless Docker. Opening a shell requires the `docker` CLI to be installed.
+`-context` flag, the `DOCKER_HOST` environment variable, the docker CLI
+context selected with `DOCKER_CONTEXT` or `docker context use`,
+`/var/run/docker.sock`, and finally the per-user sockets of Docker Desktop
+(`~/.docker/run/docker.sock`), Colima and rootless Docker. Opening a shell requires the `docker` CLI to be installed.
 
 ## Key bindings
 
