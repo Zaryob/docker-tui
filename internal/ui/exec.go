@@ -43,7 +43,8 @@ func (a *App) execShell() tea.Cmd {
 	env := slices.DeleteFunc(os.Environ(), func(kv string) bool {
 		return strings.HasPrefix(kv, "DOCKER_CONTEXT=") || strings.HasPrefix(kv, "DOCKER_HOST=")
 	})
-	cmd.Env = append(env, "DOCKER_HOST="+a.client.Host())
+	env = append(env, "DOCKER_HOST="+a.client.Host())
+	cmd.Env = env
 	name := it.name
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		return execDoneMsg{name: name, err: err}

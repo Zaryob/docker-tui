@@ -6,6 +6,7 @@ package docker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -297,7 +298,7 @@ func TestEvents(t *testing.T) {
 	var got []string
 	for {
 		ev, err := s.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
