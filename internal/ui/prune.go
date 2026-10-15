@@ -31,6 +31,8 @@ func (a *App) pruneDialog() *confirmDialog {
 		what, prune = "all unused anonymous volumes", a.client.PruneVolumes
 	case tabNetworks:
 		what, prune = "all unused networks", a.client.PruneNetworks
+	case tabBuilds:
+		what, prune = "the whole build history", a.pruneBuilds
 	default:
 		return nil
 	}

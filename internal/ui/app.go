@@ -18,6 +18,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/zaryob/docker-tui/internal/buildx"
 	"github.com/zaryob/docker-tui/internal/docker"
 )
 
@@ -32,6 +33,7 @@ type Options struct {
 type App struct {
 	opts    Options
 	client  *docker.Client
+	buildx  *buildx.CLI
 	version docker.Version
 
 	tabs   []*tab
@@ -70,11 +72,13 @@ func New(client *docker.Client, opts Options) *App {
 		opts:   opts,
 		filter: fi,
 		client: client,
+		buildx: &buildx.CLI{Host: client.Host()},
 		tabs: []*tab{
 			newContainersTab(),
 			newImagesTab(),
 			newVolumesTab(),
 			newNetworksTab(),
+			newBuildsTab(),
 		},
 		help: help.New(),
 		spinner: spinner.New(
@@ -262,6 +266,8 @@ func (a *App) removeDialog() *confirmDialog {
 					return a.client.RemoveVolume(ctx, id, force)
 				case tabNetworks:
 					return a.client.RemoveNetwork(ctx, id)
+				case tabBuilds:
+					return a.buildx.Remove(ctx, id)
 				}
 				return nil
 			})
@@ -276,7 +282,7 @@ func (a *App) removeDialog() *confirmDialog {
 		message: describeItems(items, t.noun),
 		onYes:   remove(false),
 	}
-	if t.kind != tabNetworks {
+	if t.kind != tabNetworks && t.kind != tabBuilds {
 		d.onForce = remove(true)
 	}
 	return d
@@ -295,6 +301,8 @@ func (a *App) load(kind tabKind) tea.Cmd {
 		return a.loadVolumes
 	case tabNetworks:
 		return a.loadNetworks
+	case tabBuilds:
+		return a.loadBuilds
 	}
 	return nil
 }
@@ -370,6 +378,18 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, a.setStatus(msg.err.Error(), true)
 		}
 		return a, tea.Batch(a.setStatus(msg.status, false), a.load(msg.kind))
+	case startBuildMsg:
+		if a.pane != nil {
+			a.pane.close()
+		}
+		return a, a.startBuild(msg.opts)
+	case closePaneMsg:
+		if a.pane != nil {
+			a.pane.close()
+			a.pane = nil
+			a.layout()
+		}
+		return a, nil
 	case execDoneMsg:
 		if msg.err != nil {
 			return a, tea.Batch(a.setStatus(fmt.Sprintf("exec %s: %v", msg.name, msg.err), true), a.load(tabContainers))
@@ -493,7 +513,13 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		if t.kind == tabContainers {
 			return a.containerKeys(msg)
 		}
-		// Objects other than containers have no logs; enter inspects them.
+		if (t.kind == tabImages || t.kind == tabBuilds) && key.Matches(msg, keys.Build) {
+			return a.openBuildForm()
+		}
+		if t.kind == tabBuilds && key.Matches(msg, keys.Logs) {
+			return a.openBuildLogs()
+		}
+		// Other objects have no logs; enter inspects them.
 		if key.Matches(msg, keys.Logs) {
 			return a.openInspect()
 		}

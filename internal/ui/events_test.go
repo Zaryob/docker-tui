@@ -20,7 +20,7 @@ func TestEventTabs(t *testing.T) {
 		{"container", "create", []tabKind{tabContainers, tabImages}},
 		{"container", "exec_start: sh", nil},
 		{"container", "top", nil},
-		{"image", "pull", []tabKind{tabImages}},
+		{"image", "pull", []tabKind{tabImages, tabBuilds}},
 		{"volume", "create", []tabKind{tabVolumes}},
 		{"volume", "mount", nil},
 		{"network", "destroy", []tabKind{tabNetworks}},

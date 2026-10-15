@@ -48,6 +48,8 @@ func (a *App) openInspect() tea.Cmd {
 		fetch = a.client.InspectVolume
 	case tabNetworks:
 		fetch = a.client.InspectNetwork
+	case tabBuilds:
+		fetch = a.buildx.Inspect
 	default:
 		return nil
 	}

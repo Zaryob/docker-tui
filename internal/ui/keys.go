@@ -38,6 +38,7 @@ type keyMap struct {
 	Stats       key.Binding
 	Processes   key.Binding
 	Exec        key.Binding
+	Build       key.Binding
 	Back        key.Binding
 	Help        key.Binding
 	Quit        key.Binding
@@ -52,7 +53,7 @@ var keys = keyMap{
 	Bottom:      key.NewBinding(key.WithKeys("end", "G"), key.WithHelp("G", "bottom")),
 	NextTab:     key.NewBinding(key.WithKeys("tab", "right", "l"), key.WithHelp("tab", "next tab")),
 	PrevTab:     key.NewBinding(key.WithKeys("shift+tab", "left", "h"), key.WithHelp("shift+tab", "prev tab")),
-	JumpTab:     key.NewBinding(key.WithKeys("1", "2", "3", "4"), key.WithHelp("1-4", "jump to tab")),
+	JumpTab:     key.NewBinding(key.WithKeys("1", "2", "3", "4", "5"), key.WithHelp("1-5", "jump to tab")),
 	Refresh:     key.NewBinding(key.WithKeys("r", "ctrl+r"), key.WithHelp("r", "refresh")),
 	Filter:      key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")),
 	Sort:        key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "sort")),
@@ -75,6 +76,7 @@ var keys = keyMap{
 	CopyID:      key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "copy ID")),
 	Stats:       key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "stats")),
 	Processes:   key.NewBinding(key.WithKeys("T"), key.WithHelp("T", "processes")),
+	Build:       key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "build image")),
 	Exec:        key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "shell")),
 	Back:        key.NewBinding(key.WithKeys("esc", "q"), key.WithHelp("esc", "back")),
 	Help:        key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
@@ -90,7 +92,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.Top, k.Bottom},
-		{k.ToggleAll, k.Logs, k.Inspect, k.Stats, k.Processes, k.Exec, k.Start, k.Stop, k.Restart, k.Kill, k.Pause, k.Remove, k.Prune},
+		{k.ToggleAll, k.Logs, k.Inspect, k.Stats, k.Processes, k.Exec, k.Build, k.Start, k.Stop, k.Restart, k.Kill, k.Pause, k.Remove, k.Prune},
 		{k.NextTab, k.PrevTab, k.JumpTab},
 		{k.Mark, k.MarkAll, k.MarkProject, k.Collapse, k.Filter, k.ClearFilter, k.Sort, k.ReverseSort, k.CopyID, k.Refresh, k.Help, k.Quit},
 	}

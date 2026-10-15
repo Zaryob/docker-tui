@@ -7,7 +7,8 @@ single static binary with no dependency on the Docker SDK.
 
 ## Features
 
-- Browse **containers**, **images**, **volumes** and **networks** in tabs
+- Browse **containers**, **images**, **volumes**, **networks** and **builds**
+  in tabs
 - Start, stop, restart, kill, pause/unpause and remove containers, one at a
   time or in bulk
 - Containers of a **compose project** are grouped under a foldable project
@@ -16,6 +17,8 @@ single static binary with no dependency on the Docker SDK.
   several containers such as a compose project
 - Live **stats**: CPU (with history), memory, network and block I/O
 - **Process list** of running containers, refreshed live
+- **Build** images with BuildKit and browse the **build history** with its
+  logs, like the Builds view of Docker Desktop
 - Open an interactive **shell** inside a running container
 - **Inspect** any object as pretty-printed JSON
 - Incremental **filtering** and column **sorting**
@@ -55,13 +58,14 @@ The daemon address is taken from, in order: the `-H`/`-host` flag, the
 `-context` flag, the `DOCKER_HOST` environment variable, the docker CLI
 context selected with `DOCKER_CONTEXT` or `docker context use`,
 `/var/run/docker.sock`, and finally the per-user sockets of Docker Desktop
-(`~/.docker/run/docker.sock`), Colima and rootless Docker. Opening a shell requires the `docker` CLI to be installed.
+(`~/.docker/run/docker.sock`), Colima and rootless Docker. Opening a shell, building images and the build history require the
+`docker` CLI (with buildx) to be installed.
 
 ## Key bindings
 
 | Key               | Action                                   |
 | ----------------- | ---------------------------------------- |
-| `tab` / `shift+tab`, `1`–`4` | Switch between tabs           |
+| `tab` / `shift+tab`, `1`–`5` | Switch between tabs           |
 | `↑`/`k`, `↓`/`j`  | Move the cursor                          |
 | `pgup`, `pgdn`, `g`, `G` | Page up/down, jump to top/bottom  |
 | `/`               | Filter the list (`enter` keeps, `esc` clears) |
@@ -74,6 +78,8 @@ context selected with `DOCKER_CONTEXT` or `docker context use`,
 | `t`               | Show live stats of the selected container |
 | `T`               | List the processes of the selected container |
 | `e`               | Open a shell in the selected container   |
+| `b`               | In images and builds: build an image     |
+| `enter`           | In builds: show the logs of the build    |
 | `i`               | Inspect the selected object              |
 | `y`               | Copy the ID of the selected object       |
 | `s` / `x` / `R`   | Start / stop / restart a container       |

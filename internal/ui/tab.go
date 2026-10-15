@@ -16,6 +16,7 @@ const (
 	tabImages
 	tabVolumes
 	tabNetworks
+	tabBuilds
 )
 
 // item is a single row of a resource tab.

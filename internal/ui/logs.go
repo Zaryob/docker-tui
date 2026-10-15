@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"sync"
@@ -41,6 +42,17 @@ var logGen int
 type logSource struct {
 	id   string
 	name string
+	// open, when set, replaces the container logs as the source of the
+	// lines, e.g. for the output of a build.
+	open func(ctx context.Context, timestamps bool) (io.ReadCloser, error)
+}
+
+// read opens the output of the source.
+func (src logSource) read(ctx context.Context, client *docker.Client, tail int, timestamps bool) (io.ReadCloser, error) {
+	if src.open != nil {
+		return src.open(ctx, timestamps)
+	}
+	return client.Logs(ctx, src.id, docker.LogOptions{Follow: true, Tail: tail, Timestamps: timestamps})
 }
 
 // logView streams the output of one or more containers. With several
@@ -58,6 +70,11 @@ type logView struct {
 	cancel     context.CancelFunc
 	done       bool
 	err        error
+	// kind titles the view ("Logs" by default); running and ended describe
+	// the state of the stream in the header.
+	kind    string
+	running string
+	ended   string
 
 	// searching is true while the search input has focus.
 	searching bool
@@ -175,7 +192,7 @@ func (l *logView) start() tea.Cmd {
 				case <-ctx.Done():
 				}
 			}
-			rc, err := client.Logs(ctx, src.id, docker.LogOptions{Follow: true, Tail: tail, Timestamps: timestamps})
+			rc, err := src.read(ctx, client, tail, timestamps)
 			if err != nil {
 				fail(err)
 				return
@@ -472,15 +489,27 @@ func (l *logView) searchInfo() string {
 }
 
 func (l *logView) view() string {
-	title := paneTitleStyle.Render("Logs: " + l.name)
+	kind := l.kind
+	if kind == "" {
+		kind = "Logs"
+	}
+	title := paneTitleStyle.Render(kind + ": " + l.name)
 	var info string
 	switch {
 	case l.err != nil:
 		info = errorStyle.Render(l.err.Error())
 	case l.done:
-		info = statusStyle.Render(countNoun(len(l.lines), "lines") + " · stream ended")
+		if l.ended != "" {
+			info = okStyle.Render(l.ended) + statusStyle.Render(" · "+countNoun(len(l.lines), "lines"))
+		} else {
+			info = statusStyle.Render(countNoun(len(l.lines), "lines") + " · stream ended")
+		}
 	default:
-		info = okStyle.Render("● following") + statusStyle.Render(" · "+countNoun(len(l.lines), "lines"))
+		running := l.running
+		if running == "" {
+			running = "● following"
+		}
+		info = okStyle.Render(running) + statusStyle.Render(" · "+countNoun(len(l.lines), "lines"))
 	}
 	header := title + "  " + info
 	if si := l.searchInfo(); si != "" {

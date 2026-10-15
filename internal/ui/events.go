@@ -45,7 +45,8 @@ func eventTabs(ev docker.Event) []tabKind {
 		}
 		return []tabKind{tabContainers}
 	case "image":
-		return []tabKind{tabImages}
+		// Builds create and tag images, so the build history changes too.
+		return []tabKind{tabImages, tabBuilds}
 	case "volume":
 		if ev.Action == "mount" || ev.Action == "unmount" {
 			return nil
