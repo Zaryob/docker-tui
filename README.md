@@ -11,6 +11,7 @@ single static binary with no dependency on the Docker SDK.
 - Start, stop, restart, kill, pause/unpause and remove containers
 - Follow container **logs** in real time
 - Live **stats**: CPU (with history), memory, network and block I/O
+- **Process list** of running containers, refreshed live
 - Open an interactive **shell** inside a running container
 - **Inspect** any object as pretty-printed JSON
 - Incremental **filtering** and column **sorting**
@@ -62,6 +63,7 @@ rootless Docker. Opening a shell requires the `docker` CLI to be installed.
 | `r`               | Refresh                                  |
 | `enter`           | Show logs of the selected container      |
 | `t`               | Show live stats of the selected container |
+| `T`               | List the processes of the selected container |
 | `e`               | Open a shell in the selected container   |
 | `i`               | Inspect the selected object              |
 | `y`               | Copy the ID of the selected object       |

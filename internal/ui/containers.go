@@ -146,6 +146,8 @@ func (a *App) containerKeys(msg tea.KeyMsg) tea.Cmd {
 		return a.execShell()
 	case key.Matches(msg, keys.Stats):
 		return a.openStats()
+	case key.Matches(msg, keys.Processes):
+		return a.openTop()
 	case key.Matches(msg, keys.Start):
 		return a.objectAction("started", a.client.StartContainer)
 	case key.Matches(msg, keys.Stop):

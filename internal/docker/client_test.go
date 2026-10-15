@@ -259,6 +259,25 @@ func TestListVolumesAndNetworks(t *testing.T) {
 	}
 }
 
+func TestTop(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/containers/x/top" {
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+		writeJSON(w, map[string]any{
+			"Titles":    []string{"UID", "PID", "CMD"},
+			"Processes": [][]string{{"root", "1", "nginx: master process"}},
+		})
+	}))
+	p, err := c.Top(context.Background(), "x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Titles) != 3 || len(p.Processes) != 1 || p.Processes[0][2] != "nginx: master process" {
+		t.Errorf("unexpected processes %+v", p)
+	}
+}
+
 func TestPrune(t *testing.T) {
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/images/prune" {
