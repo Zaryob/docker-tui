@@ -31,9 +31,12 @@ type Options struct {
 
 // App is the root Bubble Tea model.
 type App struct {
-	opts    Options
-	client  *docker.Client
-	buildx  *buildx.CLI
+	opts   Options
+	client *docker.Client
+	buildx *buildx.CLI
+	// build is the output of the running build, which keeps running when
+	// its view is closed.
+	build   *logView
 	version docker.Version
 
 	tabs   []*tab
@@ -418,7 +421,18 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		a.spinner, cmd = a.spinner.Update(msg)
 		return a, cmd
-	case logChunkMsg, inspectMsg, statsMsg, statsTickMsg, topMsg, topTickMsg:
+	case logChunkMsg:
+		if a.build != nil && msg.gen == a.build.gen {
+			cmd := a.build.update(msg)
+			if a.build.done {
+				return a, tea.Batch(cmd, a.buildFinished())
+			}
+			return a, cmd
+		}
+		if a.pane != nil {
+			return a, a.pane.update(msg)
+		}
+	case inspectMsg, statsMsg, statsTickMsg, topMsg, topTickMsg:
 		if a.pane != nil {
 			return a, a.pane.update(msg)
 		}
@@ -459,6 +473,11 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 			return a.pane.update(msg)
 		}
 		switch {
+		case key.Matches(msg, keys.Back) && a.pane == asPane(a.build):
+			// Closing the output of a build leaves the build running.
+			a.pane = nil
+			a.layout()
+			return a.setStatus("build continues in the background; b shows it again", false)
 		case key.Matches(msg, keys.Back):
 			a.pane.close()
 			a.pane = nil
@@ -529,7 +548,7 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 			return a.containerKeys(msg)
 		}
 		if (t.kind == tabImages || t.kind == tabBuilds) && key.Matches(msg, keys.Build) {
-			return a.openBuildForm()
+			return a.showBuild()
 		}
 		if t.kind == tabBuilds && key.Matches(msg, keys.Logs) {
 			return a.openBuildLogs()
@@ -614,6 +633,13 @@ func (a *App) header() string {
 		info = fmt.Sprintf("Docker %s · API %s", a.version.Version, a.version.APIVersion)
 	}
 	right := headerInfoStyle.Render(info)
+	if bi := a.buildIndicator(); bi != "" {
+		// The running build matters more than the daemon version.
+		right = bi + "  " + right
+		if a.width-lipgloss.Width(left)-lipgloss.Width(right) < 1 {
+			right = bi
+		}
+	}
 	gap := a.width - lipgloss.Width(left) - lipgloss.Width(right)
 	if gap < 1 {
 		return left
@@ -649,6 +675,11 @@ func (a *App) statusLine() string {
 	prefix := ""
 	if a.busy > 0 {
 		prefix = a.spinner.View() + " "
+	}
+	// A build running in the background stays visible whatever the width
+	// of the header.
+	if bi := a.buildIndicator(); bi != "" {
+		prefix += bi + statusStyle.Render(" · ")
 	}
 	switch {
 	case a.status != "" && a.statusErr:

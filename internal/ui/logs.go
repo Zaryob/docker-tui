@@ -75,6 +75,10 @@ type logView struct {
 	kind    string
 	running string
 	ended   string
+	// cancelable allows stopping the stream with x, e.g. a build;
+	// canceled records that it was stopped.
+	cancelable bool
+	canceled   bool
 
 	// searching is true while the search input has focus.
 	searching bool
@@ -419,6 +423,11 @@ func (l *logView) update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, keys.Bottom):
 			l.vp.GotoBottom()
 			return nil
+		case key.Matches(msg, logKeys.Cancel) && l.cancelable && !l.done:
+			l.canceled = true
+			l.ended = "build canceled"
+			l.close()
+			return nil
 		case key.Matches(msg, logKeys.Search):
 			l.searching = true
 			l.search.SetValue(l.query)
@@ -458,6 +467,9 @@ type logKeyMap struct {
 	NextMatch  key.Binding
 	PrevMatch  key.Binding
 	Timestamps key.Binding
+	Cancel     key.Binding
+	// showCancel adds Cancel to the help while a build runs.
+	showCancel bool
 }
 
 var logKeys = logKeyMap{
@@ -465,16 +477,25 @@ var logKeys = logKeyMap{
 	NextMatch:  key.NewBinding(key.WithKeys("n"), key.WithHelp("n/N", "next/prev match")),
 	PrevMatch:  key.NewBinding(key.WithKeys("N")),
 	Timestamps: key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "timestamps")),
+	Cancel:     key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "cancel build")),
 }
 
 func (k logKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{keys.Up, keys.Down, keys.PageUp, keys.PageDown, keys.Top, keys.Bottom, k.Search, k.NextMatch, k.Timestamps, keys.Back}
+	b := []key.Binding{keys.Up, keys.Down, keys.PageUp, keys.PageDown, keys.Top, keys.Bottom, k.Search, k.NextMatch, k.Timestamps, keys.Back}
+	if k.showCancel {
+		b = append([]key.Binding{k.Cancel}, b...)
+	}
+	return b
 }
 
 func (k logKeyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
 
 // keyMap implements keyMapper.
-func (l *logView) keyMap() help.KeyMap { return logKeys }
+func (l *logView) keyMap() help.KeyMap {
+	k := logKeys
+	k.showCancel = l.cancelable && !l.done
+	return k
+}
 
 // searchInfo describes the state of the search for the header.
 func (l *logView) searchInfo() string {

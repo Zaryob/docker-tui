@@ -83,7 +83,8 @@ buildx) to be installed.
 | `T`               | List the processes of the selected container |
 | `e`               | Open a terminal in the selected container (`ctrl+]` leaves) |
 | `E`               | Open a full-screen shell with the docker CLI |
-| `b`               | In images and builds: build an image     |
+| `b`               | In images and builds: build an image, or show the running build |
+| `x`               | In the build output: cancel the build (`esc` keeps it running) |
 | `enter`           | In builds: show the logs of the build    |
 | `i`               | Inspect the selected object              |
 | `y`               | Copy the ID of the selected object       |

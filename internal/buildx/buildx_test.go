@@ -111,6 +111,28 @@ func TestBuildStreamsOutputAndError(t *testing.T) {
 	rc.Close()
 }
 
+func TestCancelStopsChildProcesses(t *testing.T) {
+	var args []string
+	// sleep is a child of sh, like the buildx plugin is of the docker CLI.
+	c := fakeCLI("echo started; sleep 30; echo late", &args)
+	ctx, cancel := context.WithCancel(context.Background())
+	rc, err := c.Build(ctx, BuildOptions{Context: "."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rc.Close()
+	buf := make([]byte, 8)
+	if _, err := rc.Read(buf); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now()
+	cancel()
+	out, _ := io.ReadAll(rc)
+	if time.Since(start) > 3*time.Second || strings.Contains(string(out), "late") {
+		t.Errorf("output ended after %v: %q", time.Since(start), out)
+	}
+}
+
 func TestCloseAbortsBuild(t *testing.T) {
 	var args []string
 	c := fakeCLI("echo started; sleep 30", &args)

@@ -114,6 +114,71 @@ func TestBuildFormFlow(t *testing.T) {
 	}
 }
 
+// fakeBuild makes the builds of a run script instead of docker build.
+func fakeBuild(a *App, script string) {
+	a.buildx.Command = func(ctx context.Context, args ...string) (*exec.Cmd, error) {
+		return exec.CommandContext(ctx, "sh", "-c", script), nil
+	}
+}
+
+func TestBuildKeepsRunningInBackground(t *testing.T) {
+	a := newTestApp(t, http.NotFoundHandler())
+	fakeBuild(a, "echo step 1; sleep 0.3; echo step 2")
+	a.switchTab(int(tabImages))
+	r := newCmdRunner(a)
+	r.start(a.startBuild(buildx.BuildOptions{Context: "/src", Tags: []string{"app:1"}}))
+	l := a.build
+	r.run(nil, 2*time.Second, func() bool { return len(l.lines) > 0 })
+
+	// esc hides the output but the build goes on.
+	a.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
+	if a.pane != nil || a.build != l {
+		t.Fatalf("pane = %T, build = %v", a.pane, a.build)
+	}
+	a.Update(tea.WindowSizeMsg{Width: 80, Height: 30})
+	if !strings.Contains(a.statusLine(), "building app:1") {
+		t.Errorf("status line without build indicator: %q", a.statusLine())
+	}
+	// b shows it again, while it runs.
+	a.handleKey(keyRunes("b"))
+	if a.pane != asPane(l) {
+		t.Fatalf("b opened %T instead of the running build", a.pane)
+	}
+	a.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
+
+	r.run(nil, 3*time.Second, func() bool { return a.build == nil })
+	if len(l.lines) != 2 || l.err != nil {
+		t.Errorf("lines = %q, err = %v", l.lines, l.err)
+	}
+	if a.status != "build of app:1 finished" {
+		t.Errorf("status = %q", a.status)
+	}
+	// Once finished, b opens a new build form.
+	a.handleKey(keyRunes("b"))
+	if _, ok := a.pane.(*buildForm); !ok {
+		t.Errorf("pane = %T, want build form", a.pane)
+	}
+}
+
+func TestCancelBuild(t *testing.T) {
+	a := newTestApp(t, http.NotFoundHandler())
+	fakeBuild(a, "echo started; sleep 30")
+	r := newCmdRunner(a)
+	r.start(a.startBuild(buildx.BuildOptions{Context: "/src"}))
+	l := a.build
+	r.run(nil, 2*time.Second, func() bool { return len(l.lines) > 0 })
+	a.handleKey(keyRunes("x"))
+	a.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
+	start := time.Now()
+	r.run(nil, 5*time.Second, func() bool { return a.build == nil })
+	if a.build != nil || time.Since(start) > 4*time.Second {
+		t.Fatal("build not canceled")
+	}
+	if !l.canceled || a.status != "build of src canceled" {
+		t.Errorf("canceled = %v, status = %q", l.canceled, a.status)
+	}
+}
+
 func TestBuildFormEscCloses(t *testing.T) {
 	a := newTestApp(t, http.NotFoundHandler())
 	a.switchTab(int(tabBuilds))

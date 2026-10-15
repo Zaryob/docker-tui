@@ -49,6 +49,9 @@ func (c *CLI) command(ctx context.Context, args ...string) (*exec.Cmd, error) {
 		cmd = exec.CommandContext(ctx, bin, args...)
 	}
 	cmd.Env = Env(os.Environ(), c.Host)
+	setProcessGroup(cmd)
+	// Do not wait for leftover processes holding the output open.
+	cmd.WaitDelay = 5 * time.Second
 	return cmd, nil
 }
 

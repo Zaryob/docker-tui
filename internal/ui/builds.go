@@ -130,7 +130,8 @@ func (a *App) openBuildLogs() tea.Cmd {
 // startBuildMsg asks the app to run a build from the build form.
 type startBuildMsg struct{ opts buildx.BuildOptions }
 
-// startBuild replaces the build form with the output of the build.
+// startBuild replaces the build form with the output of the build. The
+// build keeps running when its output is closed; b shows it again.
 func (a *App) startBuild(opts buildx.BuildOptions) tea.Cmd {
 	cli := a.buildx
 	name := filepath.Base(opts.Context)
@@ -138,14 +139,67 @@ func (a *App) startBuild(opts buildx.BuildOptions) tea.Cmd {
 		name = strings.Join(opts.Tags, ", ")
 	}
 	l := newLogView(name, a.width, a.bodyHeight())
-	l.kind, l.running, l.ended = "Build", "● building (esc cancels)", "✓ build finished"
+	l.kind, l.running, l.ended = "Build", "● building", "✓ build finished"
+	l.cancelable = true
 	l.client = a.client
 	l.sources = []logSource{{name: name, open: func(ctx context.Context, _ bool) (io.ReadCloser, error) {
 		return cli.Build(ctx, opts)
 	}}}
+	a.build = l
 	a.pane = l
 	a.layout()
 	return l.start()
+}
+
+// showBuild opens the build form, or the output of the running build.
+func (a *App) showBuild() tea.Cmd {
+	if a.build != nil {
+		a.build.setSize(a.width, a.bodyHeight())
+		a.pane = a.build
+		a.layout()
+		return nil
+	}
+	return a.openBuildForm()
+}
+
+// buildFinished reports the end of the running build when its output is
+// not shown, and refreshes the lists it changed.
+func (a *App) buildFinished() tea.Cmd {
+	l := a.build
+	a.build = nil
+	cmds := []tea.Cmd{}
+	for _, k := range []tabKind{tabImages, tabBuilds} {
+		if a.tabs[k].loaded {
+			cmds = append(cmds, a.load(k))
+		}
+	}
+	if a.pane != asPane(l) {
+		switch {
+		case l.canceled:
+			cmds = append(cmds, a.setStatus("build of "+l.name+" canceled", false))
+		case l.err != nil:
+			cmds = append(cmds, a.setStatus("build of "+l.name+" failed: "+l.err.Error(), true))
+		default:
+			cmds = append(cmds, a.setStatus("build of "+l.name+" finished", false))
+		}
+	}
+	return tea.Batch(cmds...)
+}
+
+// asPane converts a log view to a pane, keeping nil as a nil interface.
+func asPane(l *logView) pane {
+	if l == nil {
+		return nil
+	}
+	return l
+}
+
+// buildIndicator describes the build running in the background.
+func (a *App) buildIndicator() string {
+	if a.build == nil || a.pane == asPane(a.build) {
+		return ""
+	}
+	return warnStyle.Render("⚙ building " + a.build.name)
 }
 
 // buildForm asks for the context, Dockerfile and tag of a new build.
@@ -295,7 +349,7 @@ func (f *buildForm) view() string {
 	if f.err != "" {
 		lines = append(lines, errorStyle.Render(f.err))
 	} else {
-		lines = append(lines, statusStyle.Render("Runs docker build with BuildKit; the result appears in the Images and Builds tabs."))
+		lines = append(lines, statusStyle.Render("Runs docker build with BuildKit; esc on the output keeps it running in the background."))
 	}
 	return strings.Join(lines, "\n")
 }
