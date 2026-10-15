@@ -3,9 +3,13 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.3.0] - 2026-10-15
 
 ### Added
+
+- Containers of a compose project are grouped under a project row showing
+  how many of them run. Fold or unfold it with `c`; actions, marking and
+  logs on the row apply to the whole project.
 
 - Mark objects with `space`, or all visible ones with `ctrl+a`; `esc`
   clears the marks.
