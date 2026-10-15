@@ -146,6 +146,28 @@ func TestTerminal(t *testing.T) {
 		}
 	}
 
+	// ctrl+p followed by another key reaches the shell as it is.
+	a.handleKey(tea.KeyMsg{Type: tea.KeyCtrlP})
+	a.handleKey(keyRunes("z"))
+	got = nil
+	timeout = time.After(2 * time.Second)
+	for strings.Join(got, "") != "\x10z" {
+		select {
+		case s := <-received:
+			got = append(got, s)
+		case <-timeout:
+			t.Fatalf("after ctrl+p z the shell received %q", strings.Join(got, ""))
+		}
+	}
+
+	// ctrl+p ctrl+q leaves, like in docker.
+	a.handleKey(tea.KeyMsg{Type: tea.KeyCtrlP})
+	if cmd := a.handleKey(tea.KeyMsg{Type: tea.KeyCtrlQ}); cmd == nil {
+		t.Fatal("ctrl+p ctrl+q did not leave")
+	} else if _, ok := cmd().(closePaneMsg); !ok {
+		t.Fatal("ctrl+p ctrl+q did not close the terminal")
+	}
+
 	// ctrl+] leaves the terminal.
 	cmd := a.handleKey(tea.KeyMsg{Type: tea.KeyCtrlCloseBracket})
 	a.Update(cmd())

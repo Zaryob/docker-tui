@@ -74,6 +74,10 @@ type terminalView struct {
 	output chan struct{}
 	cancel context.CancelFunc
 
+	// detachPending is set after ctrl+p, the first key of the ctrl+p
+	// ctrl+q sequence that leaves the terminal, like in docker attach.
+	detachPending bool
+
 	connected bool
 	ended     bool
 	endText   string
@@ -367,6 +371,18 @@ func (v *terminalView) update(msg tea.Msg) tea.Cmd {
 		if key.Matches(msg, terminalLeaveKey) {
 			return func() tea.Msg { return closePaneMsg{} }
 		}
+		// ctrl+p ctrl+q leaves too, as in docker; ctrl+p followed by any
+		// other key reaches the program, so its history keeps working.
+		if v.detachPending {
+			v.detachPending = false
+			if msg.Type == tea.KeyCtrlQ {
+				return func() tea.Msg { return closePaneMsg{} }
+			}
+			v.sendKey(tea.KeyMsg{Type: tea.KeyCtrlP})
+		} else if msg.Type == tea.KeyCtrlP {
+			v.detachPending = true
+			return nil
+		}
 		// Typing returns to the bottom, like in a terminal emulator; esc
 		// only returns.
 		if v.scroll > 0 {
@@ -494,8 +510,9 @@ var termKeys = map[tea.KeyType]uv.KeyPressEvent{
 
 var (
 	// terminalLeaveKey closes the terminal, like the escape key of telnet;
-	// esc itself belongs to the program, e.g. vi.
-	terminalLeaveKey   = key.NewBinding(key.WithKeys("ctrl+]"), key.WithHelp("ctrl+]", "leave"))
+	// esc itself belongs to the program, e.g. vi. ctrl+p ctrl+q, handled
+	// separately, does the same on keyboards where ] needs Option.
+	terminalLeaveKey   = key.NewBinding(key.WithKeys("ctrl+]"), key.WithHelp("ctrl+p ctrl+q / ctrl+]", "leave"))
 	terminalScrollUp   = key.NewBinding(key.WithKeys("shift+up"), key.WithHelp("shift+↑/↓", "scroll"))
 	terminalScrollDown = key.NewBinding(key.WithKeys("shift+down"))
 	terminalPageUp     = key.NewBinding(key.WithKeys("ctrl+pgup"), key.WithHelp("ctrl+pgup/pgdn", "page"))
@@ -582,7 +599,7 @@ func (v *terminalView) view() string {
 	case !v.connected:
 		info = statusStyle.Render("connecting…")
 	default:
-		info = okStyle.Render("● connected") + statusStyle.Render(" · ctrl+] to leave")
+		info = okStyle.Render("● connected") + statusStyle.Render(" · ctrl+p ctrl+q to leave")
 		if v.sess.note != "" {
 			info += statusStyle.Render(" · " + v.sess.note)
 		}

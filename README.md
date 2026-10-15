@@ -82,8 +82,8 @@ buildx) to be installed.
 | `enter`           | Show logs of the selected or marked containers |
 | `t`               | Show live stats of the selected container |
 | `T`               | List the processes of the selected container |
-| `e`               | Open a terminal in the selected container (`ctrl+]` leaves) |
-| `A`               | Attach to the main process of the selected container (`ctrl+]` detaches) |
+| `e`               | Open a terminal in the selected container (`ctrl+p ctrl+q` or `ctrl+]` leaves) |
+| `A`               | Attach to the main process of the selected container (`ctrl+p ctrl+q` or `ctrl+]` detaches) |
 | `E`               | Open a full-screen shell with the docker CLI |
 | `shift+↑/↓`, `ctrl+pgup/pgdn` | In a terminal: scroll back through the output |
 | `b`               | In images and builds: build an image, or show the running build |
