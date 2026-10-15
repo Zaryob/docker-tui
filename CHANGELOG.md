@@ -3,6 +3,19 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0] - 2026-10-15
+
+### Added
+
+- Pull images with `u` in the Images tab, following the progress of every
+  layer. Like builds, `esc` keeps the pull running in the background and
+  `x` cancels it.
+- CPU and memory columns in the container list, refreshed every few seconds
+  and summed on compose project rows; sorting on them is numeric.
+- Copy files and directories between a container and the local machine with
+  `f`, using the `docker cp` syntax `name:/path`; `ctrl+s` swaps the
+  direction. Works with stopped containers too.
+
 ## [0.4.1] - 2026-10-15
 
 ### Added
