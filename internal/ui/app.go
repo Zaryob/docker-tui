@@ -303,6 +303,9 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		return a.handleFilterKey(msg)
 	}
 	if a.pane != nil {
+		if c, ok := a.pane.(inputCapturer); ok && c.capturesInput() && msg.String() != "ctrl+c" {
+			return a.pane.update(msg)
+		}
 		switch {
 		case key.Matches(msg, keys.Back):
 			a.pane.close()
@@ -382,9 +385,23 @@ type pane interface {
 	close()
 }
 
+// inputCapturer is implemented by panes that temporarily need every key,
+// e.g. while a text input has focus.
+type inputCapturer interface {
+	capturesInput() bool
+}
+
+// keyMapper is implemented by panes with their own key bindings.
+type keyMapper interface {
+	keyMap() help.KeyMap
+}
+
 // helpKeys returns the key map for the current screen.
 func (a *App) helpKeys() help.KeyMap {
 	if a.pane != nil {
+		if m, ok := a.pane.(keyMapper); ok {
+			return m.keyMap()
+		}
 		return paneKeyMap{}
 	}
 	return keys

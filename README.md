@@ -9,7 +9,7 @@ single static binary with no dependency on the Docker SDK.
 
 - Browse **containers**, **images**, **volumes** and **networks** in tabs
 - Start, stop, restart, kill, pause/unpause and remove containers
-- Follow container **logs** in real time
+- Follow container **logs** in real time and search them
 - Live **stats**: CPU (with history), memory, network and block I/O
 - **Process list** of running containers, refreshed live
 - Open an interactive **shell** inside a running container
@@ -73,6 +73,7 @@ rootless Docker. Opening a shell requires the `docker` CLI to be installed.
 | `a`               | Toggle showing stopped containers        |
 | `d`               | Remove the selected object               |
 | `P`               | Prune unused objects of the current tab  |
+| `/`, `n` / `N`    | In logs: search, next / previous match   |
 | `esc`             | Close logs, stats or inspect             |
 | `?`               | Toggle full help                         |
 | `q`               | Quit                                     |
