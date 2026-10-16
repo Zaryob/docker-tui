@@ -3,6 +3,21 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.3] - 2026-10-16
+
+### Added
+
+- Opt-in real-daemon integration tests (`go test -race -tags integration ./...`)
+  testing ping, resource listing, and isolated container lifecycle with archive transfer.
+- Required validation steps (format check, vet, unit tests, integration tests)
+  before tagged release publication in CI.
+
+### Fixed
+
+- Cancel stalled SSH interactive handshakes and connection attempts on context
+  cancellation without terminating established terminal sessions.
+- Documentation in README for six tabs, `1`–`6` shortcut keys, and integration test command.
+
 ## [0.6.2] - 2026-10-16
 
 ### Fixed

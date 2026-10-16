@@ -7,14 +7,14 @@ single static binary with no dependency on the Docker SDK.
 
 ## Features
 
-- Browse **containers**, **images**, **volumes**, **networks** and **builds**
-  in tabs
+- Browse **containers**, **images**, **volumes**, **networks**, **builds** and
+  **logs** in tabs
 - Start, stop, restart, kill, pause/unpause and remove containers, one at a
   time or in bulk
 - Containers of a **compose project** are grouped under a foldable project
   row, like in Docker Desktop; actions on the row apply to the whole project
-- Follow container **logs** in real time and search them, also merged for
-  several containers such as a compose project
+- Follow container and build **logs** in real time, search with regex, toggle
+  case sensitivity, inspect message details, and copy log lines or IDs
 - Live **stats**: CPU (with history), memory, network and block I/O
 - **Process list** of running containers, refreshed live
 - **CPU and memory** of every running container in the list, summed per
@@ -84,7 +84,7 @@ buildx) to be installed.
 
 | Key               | Action                                   |
 | ----------------- | ---------------------------------------- |
-| `tab` / `shift+tab`, `1`–`5` | Switch between tabs           |
+| `tab` / `shift+tab`, `1`–`6` | Switch between tabs           |
 | `↑`/`k`, `↓`/`j`  | Move the cursor                          |
 | `pgup`, `pgdn`, `g`, `G` | Page up/down, jump to top/bottom  |
 | `/`               | Filter the list (`enter` keeps, `esc` clears) |
@@ -114,7 +114,7 @@ buildx) to be installed.
 | `d`               | Remove the selected object               |
 | `P`               | Prune unused objects of the current tab  |
 | `/`, `n` / `N`    | In logs: search, next / previous match   |
-| `t`               | In logs: toggle timestamps               |
+| `t`               | In container logs: toggle timestamps     |
 | `esc`             | Close logs, stats or inspect             |
 | `?`               | Toggle full help                         |
 | `q`               | Quit                                     |
@@ -125,7 +125,8 @@ marked objects, or to the selected one when nothing is marked.
 ## Development
 
 ```sh
-make test   # run the tests with the race detector
+make test                                 # run unit and race tests
+go test -race -tags integration ./...    # run real-daemon integration tests
 make vet
 make run
 ```

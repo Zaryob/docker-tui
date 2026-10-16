@@ -32,6 +32,10 @@ jobs:
       - name: Test
         run: go test -race ./...
 
+      - name: Integration tests
+        if: runner.os == 'Linux'
+        run: go test -race -tags integration ./internal/docker
+
       - name: Build
         run: go build -o docker-tui .
 
