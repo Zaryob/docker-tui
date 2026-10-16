@@ -80,9 +80,13 @@ func Tar(src, root string) io.ReadCloser {
 // a file under another name. Entries that would land outside dir are
 // rejected. Untar returns the number of files and directories written.
 func Untar(r io.Reader, dir, rename string) (int, error) {
-	root, err := filepath.EvalSymlinks(dir)
+	root, err := os.OpenRoot(dir)
 	if err != nil {
 		return 0, err
+	}
+	defer root.Close()
+	if rename != "" && (!filepath.IsLocal(rename) || filepath.Base(rename) != rename || rename == ".") {
+		return 0, fmt.Errorf("invalid archive destination name %q", rename)
 	}
 	tr := tar.NewReader(r)
 	n := 0
@@ -94,35 +98,30 @@ func Untar(r io.Reader, dir, rename string) (int, error) {
 		if err != nil {
 			return n, err
 		}
-		name := strings.TrimPrefix(path.Clean("/"+hdr.Name), "/")
-		if name == "" {
-			continue
+		name := filepath.FromSlash(path.Clean(hdr.Name))
+		if !filepath.IsLocal(name) {
+			return n, fmt.Errorf("archive entry %q is outside the destination", hdr.Name)
 		}
 		if rename != "" {
 			parts := strings.SplitN(name, "/", 2)
 			parts[0] = rename
 			name = strings.Join(parts, "/")
 		}
-		target := filepath.Join(root, filepath.FromSlash(name))
-		if err := within(root, filepath.Dir(target)); err != nil {
-			return n, err
-		}
 		mode := fs.FileMode(hdr.Mode).Perm()
 		switch hdr.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(target, mode|0o700); err != nil {
+			if err := mkdirAll(root, name, mode|0o700); err != nil {
 				return n, err
 			}
 		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			if err := mkdirAll(root, filepath.Dir(name), 0o755); err != nil {
 				return n, err
 			}
-			if err := writeFile(target, tr, mode); err != nil {
+			if err := writeFile(root, name, tr, mode); err != nil {
 				return n, err
 			}
 		case tar.TypeSymlink:
-			_ = os.Remove(target)
-			if err := os.Symlink(hdr.Linkname, target); err != nil {
+			if err := symlink(root, hdr.Linkname, name); err != nil {
 				return n, err
 			}
 		default:
@@ -133,33 +132,33 @@ func Untar(r io.Reader, dir, rename string) (int, error) {
 	}
 }
 
-// within checks that dir, with symlinks resolved, is root or inside it, so
-// that a symlink in the archive cannot redirect later entries.
-func within(root, dir string) error {
-	resolved := dir
-	// The directory may not exist yet; resolve its closest existing parent.
-	for {
-		r, err := filepath.EvalSymlinks(resolved)
-		if err == nil {
-			rest, _ := filepath.Rel(resolved, dir)
-			resolved = filepath.Join(r, rest)
-			break
+// mkdirAll uses only rooted operations, including for existing symlinks.
+// Root.MkdirAll is not available on the minimum supported Go 1.24.
+func mkdirAll(root *os.Root, name string, mode fs.FileMode) error {
+	if info, err := root.Stat(name); err == nil {
+		if info.IsDir() {
+			return nil
 		}
-		parent := filepath.Dir(resolved)
-		if parent == resolved {
-			break
-		}
-		resolved = parent
+		return fmt.Errorf("archive directory %q is not a directory", name)
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return err
 	}
-	rel, err := filepath.Rel(root, resolved)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("archive entry outside of %s", root)
+	if parent := filepath.Dir(name); parent != name {
+		if err := mkdirAll(root, parent, mode); err != nil {
+			return err
+		}
+	}
+	if err := root.Mkdir(name, mode); err != nil {
+		if info, statErr := root.Stat(name); statErr == nil && info.IsDir() {
+			return nil
+		}
+		return err
 	}
 	return nil
 }
 
-func writeFile(name string, r io.Reader, mode fs.FileMode) error {
-	f, err := os.OpenFile(name, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode|0o600)
+func writeFile(root *os.Root, name string, r io.Reader, mode fs.FileMode) error {
+	f, err := root.OpenFile(name, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode|0o600)
 	if err != nil {
 		return err
 	}

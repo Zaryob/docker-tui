@@ -35,7 +35,7 @@ single static binary with no dependency on the Docker SDK.
 
 ## Installation
 
-With Go 1.24 or newer:
+With Go 1.24.3 or newer:
 
 ```sh
 go install github.com/zaryob/docker-tui@latest

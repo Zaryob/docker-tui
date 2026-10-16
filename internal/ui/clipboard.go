@@ -25,6 +25,7 @@ func (a *App) copyID() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	copyToClipboard(it.id)
-	return a.setStatus("copied "+it.id+" to clipboard", false)
+	id := it.objectID()
+	copyToClipboard(id)
+	return a.setStatus("copied "+id+" to clipboard", false)
 }

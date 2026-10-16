@@ -6,6 +6,8 @@ package ui
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"io"
 	"sort"
 	"strings"
@@ -16,6 +18,46 @@ import (
 
 	"github.com/zaryob/docker-tui/internal/docker"
 )
+
+// logTabEntry keeps a row's source separate from its unique message ID.
+type logTabEntry struct {
+	sourceID      string
+	isBuildSource bool
+	logEntry
+}
+
+// objectID returns the Docker or build object behind a table row.
+func (it item) objectID() string {
+	if entry, ok := it.data.(logTabEntry); ok {
+		return entry.sourceID
+	}
+	return it.id
+}
+
+func logTabItems(rc io.Reader, sourceID, name string, isBuild bool, fallback time.Time, colorIndex, limit int) ([]item, error) {
+	sc := bufio.NewScanner(rc)
+	sc.Buffer(make([]byte, 64*1024), 1024*1024)
+	items := make([]item, 0, limit)
+	occurrences := make(map[[32]byte]int)
+	kind, icon := "container", "📦 "
+	if isBuild {
+		kind, icon = "build", "🔧 "
+	}
+	for len(items) < limit && sc.Scan() {
+		line := sc.Text()
+		entry := parseLogLine(line, name, isBuild, fallback, colorIndex)
+		digest := sha256.Sum256([]byte(line))
+		occurrences[digest]++
+		items = append(items, item{
+			id:       fmt.Sprintf("%s:%s:%x:%d", kind, sourceID, digest, occurrences[digest]),
+			name:     name,
+			cells:    []string{"[ ]", entry.time, icon + name, entry.message},
+			sortKeys: []string{1: entry.time},
+			data:     logTabEntry{sourceID: sourceID, isBuildSource: isBuild, logEntry: entry},
+		})
+	}
+	return items, sc.Err()
+}
 
 func newLogsTab() *tab {
 	t := newTab(tabLogs, "Logs", "log entries",
@@ -49,9 +91,16 @@ func (a *App) loadLogs() tea.Msg {
 	defer cancel()
 
 	var items []item
+	var errs []string
+	report := func(source string, err error) {
+		if err != nil {
+			errs = append(errs, source+": "+err.Error())
+		}
+	}
 
 	// 1. Fetch running containers
-	containers, _ := a.client.ListContainers(ctx, false)
+	containers, err := a.client.ListContainers(ctx, false)
+	report("containers", err)
 	for i, c := range containers {
 		if i >= 10 {
 			break
@@ -61,32 +110,19 @@ func (a *App) loadLogs() tea.Msg {
 			name = c.ID[:min(12, len(c.ID))]
 		}
 		rc, err := a.client.Logs(ctx, c.ID, docker.LogOptions{Follow: false, Tail: 15, Timestamps: true})
-		if err == nil {
-			sc := bufio.NewScanner(rc)
-			for sc.Scan() {
-				line := sc.Text()
-				entry := parseLogLine(line, name, false, time.Now(), i)
-				items = append(items, item{
-					id:   c.ID,
-					name: name,
-					cells: []string{
-						"[ ]",
-						entry.time,
-						"📦 " + name,
-						entry.message,
-					},
-					sortKeys: []string{
-						1: entry.time,
-					},
-					data: entry,
-				})
-			}
-			rc.Close()
+		if err != nil {
+			report("container "+name, err)
+			continue
 		}
+		rows, err := logTabItems(rc, c.ID, name, false, time.Now(), i, 15)
+		rc.Close()
+		items = append(items, rows...)
+		report("container "+name, err)
 	}
 
 	// 2. Fetch build history
-	records, _ := a.buildx.History(ctx)
+	records, err := a.buildx.History(ctx)
+	report("build history", err)
 	for i, r := range records {
 		if i >= 5 {
 			break
@@ -96,30 +132,14 @@ func (a *App) loadLogs() tea.Msg {
 			name = r.ID()
 		}
 		rc, err := a.buildx.Logs(ctx, r.ID())
-		if err == nil {
-			sc := bufio.NewScanner(rc)
-			linesRead := 0
-			for sc.Scan() && linesRead < 15 {
-				linesRead++
-				line := sc.Text()
-				entry := parseLogLine(line, name, true, r.CreatedAt, i)
-				items = append(items, item{
-					id:   r.ID(),
-					name: name,
-					cells: []string{
-						"[ ]",
-						entry.time,
-						"🔧 " + name,
-						entry.message,
-					},
-					sortKeys: []string{
-						1: entry.time,
-					},
-					data: entry,
-				})
-			}
-			rc.Close()
+		if err != nil {
+			report("build "+name, err)
+			continue
 		}
+		rows, err := logTabItems(rc, r.ID(), name, true, r.CreatedAt, i, 15)
+		rc.Close()
+		items = append(items, rows...)
+		report("build "+name, err)
 	}
 
 	// Sort logs descending by timestamp
@@ -127,7 +147,11 @@ func (a *App) loadLogs() tea.Msg {
 		return items[i].cells[1] > items[j].cells[1]
 	})
 
-	return listMsg{kind: tabLogs, items: items, err: nil}
+	var loadErr error
+	if len(errs) > 0 {
+		loadErr = fmt.Errorf("logs: %s", strings.Join(errs, "; "))
+	}
+	return listMsg{kind: tabLogs, items: items, err: loadErr, partial: loadErr != nil && len(items) > 0}
 }
 
 func (a *App) openSelectedLog() tea.Cmd {
@@ -135,12 +159,14 @@ func (a *App) openSelectedLog() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	// Check if build or container
-	isBuild := strings.Contains(it.cells[2], "🔧")
-	if isBuild {
-		cli, id := a.buildx, it.id
+	entry, ok := it.data.(logTabEntry)
+	if !ok {
+		return nil
+	}
+	if entry.isBuildSource {
+		cli, id := a.buildx, entry.sourceID
 		l := newLogView(it.name, a.width, a.bodyHeight())
-		l.kind, l.ended = "Logs", "complete"
+		l.kind, l.ended = "Build logs", "complete"
 		l.running = "● loading"
 		l.client = a.client
 		l.sources = []logSource{{id: id, name: it.name, open: func(ctx context.Context, _ bool) (io.ReadCloser, error) {
@@ -150,7 +176,7 @@ func (a *App) openSelectedLog() tea.Cmd {
 		return l.start()
 	}
 
-	sources := []logSource{{id: it.id, name: it.name}}
+	sources := []logSource{{id: entry.sourceID, name: it.name}}
 	l := newLogView(it.name, a.width, a.bodyHeight())
 	l.timestamps = true
 	l.client, l.sources = a.client, sources

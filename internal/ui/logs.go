@@ -347,7 +347,7 @@ func cleanLogLine(s string) string {
 	return strings.ReplaceAll(s, "\t", "    ")
 }
 
-func (l *logView) capturesInput() bool { return l.searching }
+func (l *logView) capturesInput() bool { return l.searching || l.inspecting }
 
 func (l *logView) ensureEntries() {
 	if len(l.entries) != len(l.lines) {
@@ -579,6 +579,7 @@ func (l *logView) update(msg tea.Msg) tea.Cmd {
 			l.status = l.copySelected()
 			return nil
 		}
+		return nil
 	}
 
 	switch msg := msg.(type) {
@@ -590,21 +591,32 @@ func (l *logView) update(msg tea.Msg) tea.Cmd {
 			l.err = msg.err
 		}
 		if len(msg.lines) > 0 {
+			l.ensureEntries()
 			atBottom := l.vp.AtBottom() || len(l.lines) == 0
 			isBuild := l.kind == "Build" || l.kind == "Build logs" || strings.Contains(l.name, "build")
 			for _, line := range msg.lines {
 				entry := parseLogLine(line, l.name, isBuild, time.Now(), len(l.entries))
 				l.entries = append(l.entries, entry)
 			}
-			if over := len(l.entries) - logMaxLines; over > 0 {
-				l.entries = l.entries[over:]
-			}
 			l.lines = append(l.lines, msg.lines...)
 			dropped := 0
 			if over := len(l.lines) - logMaxLines; over > 0 {
 				l.lines = l.lines[over:]
+				l.entries = l.entries[over:]
 				dropped = over
+				marked := make(map[int]bool, len(l.marked))
+				for idx, selected := range l.marked {
+					if selected && idx >= over {
+						marked[idx-over] = true
+					}
+				}
+				l.marked = marked
+				if l.cursor < over {
+					l.inspecting = false
+				}
+				l.cursor = max(0, l.cursor-over)
 			}
+			offset := max(0, l.vp.YOffset-dropped)
 
 			var cur int
 			hasCur := l.match >= 0 && l.match < len(l.matches)
@@ -612,6 +624,7 @@ func (l *logView) update(msg tea.Msg) tea.Cmd {
 				cur = l.matches[l.match] - dropped
 			}
 			l.render()
+			l.vp.SetYOffset(offset)
 			if hasCur {
 				l.match = min(sort.SearchInts(l.matches, cur), max(len(l.matches)-1, 0))
 			} else {
@@ -665,14 +678,18 @@ func (l *logView) update(msg tea.Msg) tea.Cmd {
 			l.render()
 			return nil
 		case key.Matches(msg, keys.PageDown):
-			l.cursor = min(len(l.entries)-1, l.cursor+l.vp.Height)
+			l.cursor = max(0, min(len(l.entries)-1, l.cursor+l.vp.Height))
 			l.vp.SetYOffset(min(max(0, len(l.entries)-l.vp.Height), l.vp.YOffset+l.vp.Height))
 			l.render()
 			return nil
 		case msg.String() == " ":
 			l.ensureEntries()
 			if l.cursor >= 0 && l.cursor < len(l.entries) {
-				l.marked[l.cursor] = !l.marked[l.cursor]
+				if l.marked[l.cursor] {
+					delete(l.marked, l.cursor)
+				} else {
+					l.marked[l.cursor] = true
+				}
 				l.render()
 			}
 			return nil
@@ -734,11 +751,21 @@ func (l *logView) update(msg tea.Msg) tea.Cmd {
 }
 
 func (l *logView) toggleTimestamps() tea.Cmd {
+	// Custom sources can run operations, including image builds. Reopening
+	// them would cancel and repeat the operation instead of changing display.
+	for _, source := range l.sources {
+		if source.open != nil {
+			l.status = "timestamps are only available for container logs"
+			return nil
+		}
+	}
 	l.close()
 	l.timestamps = !l.timestamps
 	logGen++
 	l.gen = logGen
 	l.lines, l.entries, l.done, l.err = nil, nil, false, nil
+	l.marked = make(map[int]bool)
+	l.cursor, l.inspecting, l.status = 0, false, ""
 	l.render()
 	l.match = -1
 	return l.start()

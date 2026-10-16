@@ -265,6 +265,9 @@ func describeItems(items []item, noun string) string {
 // the active tab.
 func (a *App) removeDialog() *confirmDialog {
 	t := a.current()
+	if t.kind == tabLogs {
+		return nil
+	}
 	items := a.targets()
 	if len(items) == 0 {
 		return nil
@@ -414,7 +417,7 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case listMsg:
 		t := a.tabs[msg.kind]
 		t.loadErr = msg.err
-		if msg.err == nil {
+		if msg.err == nil || msg.partial {
 			if msg.kind == tabContainers {
 				applyUsage(msg.items, a.usage)
 			}

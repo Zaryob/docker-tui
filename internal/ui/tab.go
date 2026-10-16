@@ -66,6 +66,9 @@ type listMsg struct {
 	kind  tabKind
 	items []item
 	err   error
+	// partial allows usable results to replace the list while reporting
+	// failures from other sources, e.g. a combined log snapshot.
+	partial bool
 }
 
 // tab holds the state of one resource list (containers, images, ...).

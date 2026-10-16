@@ -3,6 +3,22 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.2] - 2026-10-16
+
+### Fixed
+
+- Container archive extraction is confined to the selected directory, including
+  file and directory symlinks. Traversal entries are rejected explicitly.
+- The minimum Go version is 1.24.3, which fixes the `os.Root` parent-directory
+  escape (CVE-2025-22873).
+- Toggling timestamps in build output no longer cancels or starts a build again.
+- Logs snapshots report source and scanner failures while retaining usable
+  partial results. Log messages have identities distinct from their sources.
+- Log selection and scroll position stay attached to the same messages when
+  older output is discarded, and Escape closes message details locally.
+- The Logs tab no longer offers object removal; copying an ID copies the
+  underlying container or build ID.
+
 ## [0.6.1] - 2026-10-15
 
 ### Added
