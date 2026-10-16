@@ -129,7 +129,7 @@ func NewClientWithConfig(cfg Config) (*Client, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid docker host %q: %w", host, err)
 		}
-		dial = func(context.Context) (net.Conn, error) { return dialSSH(args) }
+		dial = func(ctx context.Context) (net.Conn, error) { return dialSSH(ctx, args) }
 	default:
 		return nil, fmt.Errorf("unsupported docker host %q: only unix://, tcp:// and ssh:// are supported", host)
 	}

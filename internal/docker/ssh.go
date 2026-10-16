@@ -4,6 +4,7 @@
 package docker
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -41,7 +42,10 @@ func sshArgs(u *url.URL) ([]string, error) {
 
 // dialSSH starts ssh and returns its standard input and output as a
 // connection to the daemon.
-func dialSSH(args []string) (net.Conn, error) {
+func dialSSH(ctx context.Context, args []string) (net.Conn, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	cmd := sshCommand(args...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -49,12 +53,29 @@ func dialSSH(args []string) (net.Conn, error) {
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		stdin.Close()
 		return nil, err
 	}
 	stderr := &lastLine{}
 	cmd.Stderr = stderr
+
+	stop := context.AfterFunc(ctx, func() {
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+	})
+	defer stop()
+
 	if err := cmd.Start(); err != nil {
+		stdin.Close()
+		stdout.Close()
 		return nil, fmt.Errorf("ssh: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		_ = cmd.Process.Kill()
+		stdin.Close()
+		stdout.Close()
+		return nil, err
 	}
 	return &cmdConn{cmd: cmd, stdin: stdin, stdout: stdout, stderr: stderr}, nil
 }

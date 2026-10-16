@@ -37,6 +37,10 @@ func TestMain(m *testing.M) {
 			os.Stderr.WriteString(msg + "\n")
 			os.Exit(255)
 		}
+		if os.Getenv("DTUI_SSH_HANG") != "" {
+			time.Sleep(10 * time.Second)
+			os.Exit(0)
+		}
 		conn, err := net.Dial("unix", sock)
 		if err != nil {
 			os.Exit(1)
@@ -126,6 +130,32 @@ func TestSSHError(t *testing.T) {
 	}
 	if _, err := c.ServerVersion(context.Background()); err == nil || !strings.Contains(err.Error(), "Permission denied (publickey)") {
 		t.Errorf("err = %v", err)
+	}
+}
+
+func TestSSHCancellation(t *testing.T) {
+	old := sshCommand
+	sshCommand = func(args ...string) *exec.Cmd {
+		cmd := exec.Command(os.Args[0])
+		cmd.Env = append(os.Environ(), "DTUI_SSH_SOCKET=unused", "DTUI_SSH_HANG=1")
+		return cmd
+	}
+	t.Cleanup(func() { sshCommand = old })
+
+	c, err := NewClient("ssh://me@box")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, err = c.ServerVersion(ctx)
+	if err == nil {
+		t.Fatal("expected error from canceled context")
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Fatalf("SSH dial took %v, expected cancellation around 100ms", elapsed)
 	}
 }
 

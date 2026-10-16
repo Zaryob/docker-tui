@@ -114,6 +114,17 @@ func (c *Client) hijack(ctx context.Context, path string, query url.Values, body
 	}
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "tcp")
+	// Abort the connection if ctx is canceled during the upgrade handshake.
+	handshakeDone := make(chan struct{})
+	defer close(handshakeDone)
+	go func() {
+		select {
+		case <-ctx.Done():
+			conn.Close()
+		case <-handshakeDone:
+		}
+	}()
+
 	if deadline, ok := ctx.Deadline(); ok {
 		_ = conn.SetDeadline(deadline)
 	}
