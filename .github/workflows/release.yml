@@ -33,6 +33,12 @@ jobs:
           DOCKER_TUI_INTEGRATION_REQUIRED: "1"
         run: go test -race -tags integration ./...
 
+      - name: Lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.1.6
+          args: --build-tags integration
+
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"

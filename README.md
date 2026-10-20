@@ -7,7 +7,7 @@ single static binary with no dependency on the Docker SDK.
 
 ## Features
 
-- Browse **containers**, **images**, **volumes**, **networks**, **builds** and
+- Browse **containers**, **images**, **volumes**, **networks**, **builds**,
   **logs** and **Compose projects** in seven tabs
 - Start, stop, restart, kill, pause/unpause and remove containers, one at a
   time or in bulk

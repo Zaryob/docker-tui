@@ -7,6 +7,7 @@ package docker_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -111,7 +112,7 @@ func TestRealRegistryLoginPullLogout(t *testing.T) {
 	}
 	for {
 		_, err = stream.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -134,7 +135,7 @@ func TestRealRegistryLoginPullLogout(t *testing.T) {
 			_, err = stream.Next()
 		}
 	}
-	if err == nil || err == io.EOF || !strings.Contains(err.Error(), "ctrl+l") {
+	if err == nil || errors.Is(err, io.EOF) || !strings.Contains(err.Error(), "ctrl+l") {
 		t.Fatalf("unauthenticated pull should require login: %v", err)
 	}
 }

@@ -26,6 +26,8 @@ func (a *App) copyID() tea.Cmd {
 		return nil
 	}
 	id := it.objectID()
-	copyToClipboard(id)
+	if err := copyToClipboard(id); err != nil {
+		return a.setStatus("sent "+id+" to terminal clipboard (OSC 52)", false)
+	}
 	return a.setStatus("copied "+id+" to clipboard", false)
 }

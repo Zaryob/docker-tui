@@ -22,13 +22,6 @@ var (
 	colorPassiveTabFg = lipgloss.Color("#A0AAB5") // Passive tab text (readable light gray)
 	colorPassiveTabBg = lipgloss.Color("#1C242D") // Passive tab background
 	colorTabSep       = lipgloss.Color("#36414D") // Tab and header separator
-	colorTabHover     = lipgloss.Color("#263F52")
-
-	titleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#FFFFFF")).
-			Background(colorAccent).
-			Padding(0, 1)
 
 	// Modern compact tabs without underlines
 	tabStyle = lipgloss.NewStyle().

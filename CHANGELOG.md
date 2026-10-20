@@ -24,6 +24,11 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Report terminal clipboard fallback accurately and clear outstanding lint
+  issues in log rendering, snapshot limits, tests and unused styles.
+- Require lint (including integration sources) before both CI completion and
+  tagged release publication.
+
 - Keep explicitly opened local Compose sources across daemon refreshes and
   application restarts, and keep the registry password label on one line.
 
