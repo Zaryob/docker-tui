@@ -3,41 +3,54 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.9.0] - 2026-10-20
 
 ### Added
 
-- Private registry pulls reuse Docker file credentials, credential helpers and
-  DOCKER_AUTH_CONFIG. Images provides masked login/logout forms on ctrl+l/ctrl+o
-  through Docker's configured credential store, with authentication recovery
-  guidance and credential redaction in pull diagnostics.
-- Isolated real-registry login/pull/logout integration coverage.
-
-- Persist per-tab filters/sorting and stopped-container visibility in a versioned,
-  atomically written user config; `-reset-preferences` restores list defaults.
-- Retain local Compose sources across sessions, isolated by daemon/context.
-
-- Projects tab (7) discovers Compose projects on the selected daemon and runs
-  up, confirmed down and rebuild with streamed, cancelable progress. Local
-  Compose files can be opened and projects remain accessible after down.
-- Real-daemon Compose lifecycle smoke test, required by CI and release gates.
+- Private registry pulls reuse Docker file credentials, registry-specific
+  credential helpers, the default configured credential store and
+  DOCKER_AUTH_CONFIG, with credentials scoped to the target registry.
+- Images provides registry login and logout on ctrl+l and ctrl+o. Masked forms
+  delegate storage to the Docker CLI and pass passwords only through stdin.
+- Pull authentication failures explain how to log in and retry; known secrets
+  are redacted from daemon errors and progress messages.
+- Isolated authenticated registry login/pull/logout integration coverage.
 
 ### Fixed
 
-- Recognize Docker 28 authentication failures that report missing basic
-  credentials, and run daemon fixture packages serially to avoid contention.
+- Recognize Docker 28's missing-basic-credentials error as an authentication
+  failure and show the same recovery guidance as other daemon versions.
+- Keep the registry password label on one line in the terminal UI.
 
-- Report terminal clipboard fallback accurately and clear outstanding lint
-  issues in log rendering, snapshot limits, tests and unused styles.
-- Require lint (including integration sources) before both CI completion and
-  tagged release publication.
+## [0.8.0] - 2026-10-20
 
-- Keep explicitly opened local Compose sources across daemon refreshes and
-  application restarts, and keep the registry password label on one line.
+### Added
 
-- Real-daemon tests use a known Alpine fixture and the selected daemon context,
-  assert log/process/stop/removal behavior, and fail on unavailable prerequisites
-  in CI instead of silently skipping integration coverage.
+- Save each tab's filter, sort column and sort direction across sessions.
+- Persist stopped-container visibility in a versioned user configuration.
+- Atomic writes and validated fields keep missing, malformed or edited settings
+  from breaking startup; `-reset-preferences` resets list defaults.
+- Retain local Compose source files across application restarts, separately for
+  each daemon/context, including explicitly selected local source overrides.
+
+## [0.7.0] - 2026-10-20
+
+### Added
+
+- Projects tab (7) discovers Compose projects on the selected Docker daemon.
+- Project up, confirmed down and rebuild operations stream progress, support
+  cancellation and continue in the background when their output is closed.
+- Open local Compose files when daemon paths are unavailable; explicitly opened
+  sources survive daemon refreshes, and projects remain accessible after down
+  within the current session.
+- Isolated real-daemon Compose lifecycle integration coverage.
+
+### Fixed
+
+- Real-daemon tests use a known Alpine fixture and the selected context, verify
+  logs/processes/stop/removal, and fail on missing prerequisites in CI.
+- CI and tagged releases require integration tests and integration-aware lint.
+- Clipboard fallback status, log snapshot limits and outstanding lint issues.
 
 ## [0.6.3] - 2026-10-16
 

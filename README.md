@@ -158,7 +158,7 @@ and retry the pull.
 
 ```sh
 make test                                 # run unit and race tests
-go test -race -tags integration ./...    # run real-daemon integration tests
+go test -p 1 -race -count=1 -tags integration ./...    # run real-daemon integration tests
 make vet
 make run
 ```
