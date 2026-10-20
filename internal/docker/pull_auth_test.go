@@ -7,11 +7,14 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/zaryob/docker-tui/internal/registry"
 )
 
 func TestPullUsesMatchingCredentialsAndRedactsDiagnostics(t *testing.T) {
@@ -63,5 +66,14 @@ func TestPullUsesMatchingCredentialsAndRedactsDiagnostics(t *testing.T) {
 	_, err = c.PullImage(context.Background(), "other.example/app")
 	if err == nil || !strings.Contains(err.Error(), "ctrl+l") {
 		t.Fatal("missing authentication recovery guidance")
+	}
+}
+
+func TestPullAuthenticationMessagesExplainRecovery(t *testing.T) {
+	for _, message := range []string{"unauthorized", "authentication required", `Head "http://registry/v2/app/manifests/latest": no basic auth credentials`} {
+		err := pullError(errors.New(message), registry.Auth{})
+		if !strings.Contains(err.Error(), "ctrl+l") {
+			t.Fatalf("missing login guidance for %q", message)
+		}
 	}
 }

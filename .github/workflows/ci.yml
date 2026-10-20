@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "codex/release-v*"]
   pull_request:
 
 permissions:
@@ -36,7 +36,7 @@ jobs:
         if: runner.os == 'Linux'
         env:
           DOCKER_TUI_INTEGRATION_REQUIRED: "1"
-        run: go test -race -tags integration ./...
+        run: go test -p 1 -race -tags integration ./...
 
       - name: Build
         run: go build -o docker-tui .

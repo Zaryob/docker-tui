@@ -96,7 +96,7 @@ func pullError(err error, auth registry.Auth) error {
 	message := auth.Redact(err.Error())
 	lower := strings.ToLower(message)
 	var apiErr *APIError
-	if (errors.As(err, &apiErr) && (apiErr.StatusCode == http.StatusUnauthorized || apiErr.StatusCode == http.StatusForbidden)) || strings.Contains(lower, "unauthorized") || strings.Contains(lower, "access denied") || strings.Contains(lower, "authentication required") {
+	if (errors.As(err, &apiErr) && (apiErr.StatusCode == http.StatusUnauthorized || apiErr.StatusCode == http.StatusForbidden)) || strings.Contains(lower, "unauthorized") || strings.Contains(lower, "access denied") || strings.Contains(lower, "authentication required") || strings.Contains(lower, "no basic auth credentials") {
 		return fmt.Errorf("%s; use ctrl+l in Images to log in, then retry the pull", message)
 	}
 	return errors.New(message)
