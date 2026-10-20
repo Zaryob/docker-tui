@@ -33,7 +33,7 @@ are separate from the implementation work.
   and explain when project files are unavailable locally.
 - Gate: command/context tests, UI lifecycle tests and isolated Compose smoke test.
 
-## v0.8.0 — Persistent list preferences
+## v0.8.0 — Persistent list preferences (implemented; publication pending)
 
 - Save each tab's filter, sort column and sort direction across sessions.
 - Persist the stopped-container visibility preference.

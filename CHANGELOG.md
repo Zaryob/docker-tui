@@ -7,6 +7,10 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Persist per-tab filters/sorting and stopped-container visibility in a versioned,
+  atomically written user config; `-reset-preferences` restores list defaults.
+- Retain local Compose sources across sessions, isolated by daemon/context.
+
 - Projects tab (7) discovers Compose projects on the selected daemon and runs
   up, confirmed down and rebuild with streamed, cancelable progress. Local
   Compose files can be opened and projects remain accessible after down.

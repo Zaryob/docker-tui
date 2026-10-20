@@ -60,6 +60,7 @@ docker-tui -H tcp://10.0.0.5:2375
 docker-tui -H ssh://deploy@build-server
 docker-tui -context colima         # use the endpoint of a docker CLI context
 docker-tui -refresh 10s          # refresh lists every 10 seconds (0 disables)
+docker-tui -reset-preferences     # reset saved filters/sorting/visibility and exit
 docker-tui -version
 ```
 
@@ -130,7 +131,15 @@ The Projects tab (7) discovers projects on the selected daemon. Operations need
 Compose files on this machine; `f` opens a local file when daemon paths are
 unavailable. Escape keeps an operation running; `u` reopens its output and `x`
 cancels it. `down` preserves volumes and retains the project in the current
-session so it can be started again. Compose requires the Docker CLI plugin.
+session and across restarts so it can be started again. Compose requires the Docker CLI plugin.
+
+List filters, sorting and stopped-container visibility are saved automatically
+in `docker-tui/preferences.json` under the platform's user configuration
+directory (`~/.config` on Linux, `~/Library/Application Support` on macOS).
+Compose source paths are retained separately for each daemon/context.
+`docker-tui -reset-preferences` resets list preferences while keeping project
+sources. Missing or malformed preferences fall back to defaults with an error
+message for malformed files. No registry credentials are stored in this file.
 
 ## Development
 
