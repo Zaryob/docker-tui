@@ -24,7 +24,7 @@ are separate from the implementation work.
 - Update the README for six tabs, structured logs and actual test commands.
 - Gate: full checks, real-daemon tests and workflow review.
 
-## v0.7.0 — Compose project operations (release prepared)
+## v0.7.0 — Compose project operations (released)
 
 - Discover Compose projects through the selected daemon's Docker CLI context.
 - Run project `up`, `down` and rebuild (`up --build`) with streamed progress,
@@ -33,7 +33,7 @@ are separate from the implementation work.
   and explain when project files are unavailable locally.
 - Gate: command/context tests, UI lifecycle tests and isolated Compose smoke test.
 
-## v0.8.0 — Persistent list preferences
+## v0.8.0 — Persistent list preferences (release prepared)
 
 - Save each tab's filter, sort column and sort direction across sessions.
 - Persist the stopped-container visibility preference.

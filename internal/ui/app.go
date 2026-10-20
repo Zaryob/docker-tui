@@ -7,6 +7,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -20,10 +21,13 @@ import (
 
 	"github.com/zaryob/docker-tui/internal/buildx"
 	"github.com/zaryob/docker-tui/internal/docker"
+	"github.com/zaryob/docker-tui/internal/preferences"
 )
 
 // Options configures the application.
 type Options struct {
+	// PreferencesPath enables loading and saving non-secret UI preferences.
+	PreferencesPath string
 	// RefreshInterval is how often the visible list is reloaded. Zero or
 	// less disables automatic refreshing.
 	RefreshInterval time.Duration
@@ -31,9 +35,10 @@ type Options struct {
 
 // App is the root Bubble Tea model.
 type App struct {
-	opts   Options
-	client *docker.Client
-	buildx *buildx.CLI
+	savedPreferences preferences.State
+	opts             Options
+	client           *docker.Client
+	buildx           *buildx.CLI
 	// pull is the running image pull, which keeps running when its view
 	// is closed.
 	pull *pullView
@@ -84,7 +89,7 @@ func New(client *docker.Client, opts Options) *App {
 	fi.Prompt = "/"
 	fi.Placeholder = "filter"
 	fi.PromptStyle = lipgloss.NewStyle().Foreground(colorAccent)
-	return &App{
+	a := &App{
 		opts:   opts,
 		filter: fi,
 		client: client,
@@ -105,6 +110,8 @@ func New(client *docker.Client, opts Options) *App {
 			spinner.WithStyle(lipgloss.NewStyle().Foreground(colorAccent)),
 		),
 	}
+	a.restorePreferences()
+	return a
 }
 
 const statusTimeout = 4 * time.Second
@@ -382,7 +389,18 @@ func (a *App) switchTab(i int) tea.Cmd {
 
 // Update implements tea.Model.
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	before := a.preferenceSnapshot()
 	m, cmd := a.update(msg)
+	if a.opts.PreferencesPath != "" {
+		after := a.preferenceSnapshot()
+		if !reflect.DeepEqual(before, after) {
+			if err := preferences.Save(a.opts.PreferencesPath, after); err != nil {
+				cmd = tea.Batch(cmd, a.setStatus("save preferences: "+err.Error(), true))
+			} else {
+				a.savedPreferences = after
+			}
+		}
+	}
 	// A pull started from its view keeps running in the background.
 	if v, ok := a.pane.(*pullView); ok && v.running() && a.pull == nil {
 		a.pull = v

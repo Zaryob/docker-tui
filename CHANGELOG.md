@@ -3,6 +3,17 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.0] - 2026-10-20
+
+### Added
+
+- Save each tab's filter, sort column and sort direction across sessions.
+- Persist stopped-container visibility in a versioned user configuration.
+- Atomic writes and validated fields keep missing, malformed or edited settings
+  from breaking startup; `-reset-preferences` resets list defaults.
+- Retain local Compose source files across application restarts, separately for
+  each daemon/context, including explicitly selected local source overrides.
+
 ## [0.7.0] - 2026-10-20
 
 ### Added

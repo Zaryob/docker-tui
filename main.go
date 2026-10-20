@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/zaryob/docker-tui/internal/docker"
+	"github.com/zaryob/docker-tui/internal/preferences"
 	"github.com/zaryob/docker-tui/internal/ui"
 )
 
@@ -31,15 +32,17 @@ func main() {
 
 func run() error {
 	var (
-		host        string
-		contextName string
-		refresh     time.Duration
-		showVersion bool
+		host             string
+		contextName      string
+		refresh          time.Duration
+		showVersion      bool
+		resetPreferences bool
 	)
 	flag.StringVar(&host, "host", "", "Docker daemon address (default $DOCKER_HOST or "+docker.DefaultHost+")")
 	flag.StringVar(&host, "H", "", "shorthand for -host")
 	flag.StringVar(&contextName, "context", "", "docker CLI context to use (default $DOCKER_CONTEXT or the current context)")
 	flag.DurationVar(&refresh, "refresh", 3*time.Second, "interval for refreshing lists, 0 disables")
+	flag.BoolVar(&resetPreferences, "reset-preferences", false, "reset saved list preferences and exit")
 	flag.BoolVar(&showVersion, "version", false, "print version and exit")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: docker-tui [flags]\n\nA terminal user interface for Docker.\n\nFlags:\n")
@@ -56,8 +59,19 @@ func run() error {
 		return fmt.Errorf("unexpected arguments: %v", flag.Args())
 	}
 
+	preferencesPath, err := preferences.Path()
+	if err != nil {
+		return fmt.Errorf("locate preferences: %w", err)
+	}
+	if resetPreferences {
+		if err := preferences.ResetLists(preferencesPath); err != nil {
+			return err
+		}
+		fmt.Println("List preferences reset")
+		return nil
+	}
+
 	var client *docker.Client
-	var err error
 	if contextName != "" {
 		if host != "" {
 			return errors.New("-host and -context cannot be used together")
@@ -81,7 +95,7 @@ func run() error {
 	// input; doing it lazily during the first render can swallow keystrokes.
 	lipgloss.SetHasDarkBackground(lipgloss.HasDarkBackground())
 
-	app := ui.New(client, ui.Options{RefreshInterval: refresh})
+	app := ui.New(client, ui.Options{RefreshInterval: refresh, PreferencesPath: preferencesPath})
 	p := tea.NewProgram(app, tea.WithAltScreen())
 	_, err = p.Run()
 	return err
