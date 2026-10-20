@@ -42,10 +42,11 @@ are separate from the implementation work.
 - Provide an explicit way to reset saved list preferences.
 - Gate: persistence round trips, malformed-config tests and UI behavior tests.
 
-## v0.9.0 — Registry login (planned)
+## v0.9.0 — Registry login (implemented; publication pending)
 
 - Reuse Docker credential helpers and registry credentials for private pulls.
 - Keep secrets out of UI status, logs and saved list preferences.
-- Design login/logout and authentication-error handling before implementation.
-- This release is reserved for later work; no login implementation is included
-  in v0.6.2–v0.8.0.
+- Masked login/logout forms use the Docker CLI credential store; authentication
+  failures explain how to log in and retry.
+- Gate: helper/config precedence, registry isolation, secret redaction, UI tests
+  and an isolated real-registry login/pull/logout smoke test.

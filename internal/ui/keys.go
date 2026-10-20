@@ -41,6 +41,8 @@ type keyMap struct {
 	ExecCLI     key.Binding
 	Attach      key.Binding
 	Build       key.Binding
+	Login       key.Binding
+	Logout      key.Binding
 	Pull        key.Binding
 	Copy        key.Binding
 	Back        key.Binding
@@ -81,6 +83,8 @@ var keys = keyMap{
 	Stats:       key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "stats")),
 	Processes:   key.NewBinding(key.WithKeys("T"), key.WithHelp("T", "processes")),
 	Build:       key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "build image")),
+	Login:       key.NewBinding(key.WithKeys("ctrl+l"), key.WithHelp("ctrl+l", "registry login (Images)")),
+	Logout:      key.NewBinding(key.WithKeys("ctrl+o"), key.WithHelp("ctrl+o", "registry logout (Images)")),
 	Pull:        key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "pull image")),
 	Copy:        key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "copy files")),
 	Exec:        key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "terminal")),
@@ -100,7 +104,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.Top, k.Bottom},
-		{k.ToggleAll, k.Logs, k.Inspect, k.Stats, k.Processes, k.Exec, k.Attach, k.ExecCLI, k.Build, k.Pull, k.Copy, k.Start, k.Stop, k.Restart, k.Kill, k.Pause, k.Remove, k.Prune},
+		{k.ToggleAll, k.Logs, k.Inspect, k.Stats, k.Processes, k.Exec, k.Attach, k.ExecCLI, k.Build, k.Pull, k.Login, k.Logout, k.Copy, k.Start, k.Stop, k.Restart, k.Kill, k.Pause, k.Remove, k.Prune},
 		{k.NextTab, k.PrevTab, k.JumpTab},
 		{k.Mark, k.MarkAll, k.MarkProject, k.Collapse, k.Filter, k.ClearFilter, k.Sort, k.ReverseSort, k.CopyID, k.Refresh, k.Help, k.Quit},
 	}

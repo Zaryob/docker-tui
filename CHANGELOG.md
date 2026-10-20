@@ -7,6 +7,12 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Private registry pulls reuse Docker file credentials, credential helpers and
+  DOCKER_AUTH_CONFIG. Images provides masked login/logout forms on ctrl+l/ctrl+o
+  through Docker's configured credential store, with authentication recovery
+  guidance and credential redaction in pull diagnostics.
+- Isolated real-registry login/pull/logout integration coverage.
+
 - Persist per-tab filters/sorting and stopped-container visibility in a versioned,
   atomically written user config; `-reset-preferences` restores list defaults.
 - Retain local Compose sources across sessions, isolated by daemon/context.

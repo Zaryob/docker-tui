@@ -452,6 +452,24 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.usagePolling = true
 			return a, a.loadUsage()
 		}
+	case registryResultMsg:
+		f, ok := a.pane.(*registryForm)
+		if !ok || f != msg.form {
+			return a, nil
+		}
+		f.busy = false
+		if msg.err != nil {
+			f.err = msg.err.Error()
+			return a, nil
+		}
+		f.close()
+		a.pane = nil
+		a.layout()
+		status := "registry login complete; retry the pull"
+		if msg.logout {
+			status = "registry credentials removed"
+		}
+		return a, a.setStatus(status, false)
 	case projectsMsg:
 		a.mergeProjects(msg.projects, msg.err)
 	case openComposeMsg:
@@ -686,6 +704,12 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		if t.kind == tabContainers {
 			return a.containerKeys(msg)
 		}
+		if t.kind == tabImages && msg.String() == "ctrl+l" {
+			return a.openRegistry(false)
+		}
+		if t.kind == tabImages && msg.String() == "ctrl+o" {
+			return a.openRegistry(true)
+		}
 		if t.kind == tabImages && key.Matches(msg, keys.Pull) {
 			return a.showPull()
 		}
@@ -738,6 +762,9 @@ func (a *App) helpKeys() help.KeyMap {
 			return m.keyMap()
 		}
 		return paneKeyMap{}
+	}
+	if a.current().kind == tabImages {
+		return imageKeyMap{keys}
 	}
 	if a.current().kind == tabProjects {
 		return projectKeyMap{}
@@ -896,6 +923,6 @@ func (a *App) closeOperations() {
 		a.build.close()
 	}
 	if a.pull != nil {
-		a.pull.close()
+		a.pull.stop()
 	}
 }

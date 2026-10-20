@@ -20,6 +20,8 @@ import (
 // newTestApp returns an App whose client talks to handler.
 func newTestApp(t *testing.T, handler http.Handler) *App {
 	t.Helper()
+	t.Setenv("DOCKER_CONFIG", t.TempDir())
+	t.Setenv("DOCKER_AUTH_CONFIG", "")
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 	client, err := docker.NewClient("tcp://" + strings.TrimPrefix(srv.URL, "http://"))

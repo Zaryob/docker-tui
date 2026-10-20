@@ -454,6 +454,8 @@ func TestSplitReference(t *testing.T) {
 }
 
 func TestPullImage(t *testing.T) {
+	t.Setenv("DOCKER_CONFIG", t.TempDir())
+	t.Setenv("DOCKER_AUTH_CONFIG", "")
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/images/create" {
 			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)

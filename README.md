@@ -22,7 +22,8 @@ single static binary with no dependency on the Docker SDK.
 - **CPU and memory** of every running container in the list, summed per
   compose project
 - **Copy files** to and from containers, like `docker cp`
-- **Pull** images with live progress per layer
+- **Pull** images with live progress per layer, including private registries
+  using Docker credential helpers; log in/out from the Images tab
 - **Build** images with BuildKit and browse the **build history** with its
   logs, like the Builds view of Docker Desktop
 - Built-in **terminal** for running containers, like the Exec tab of Docker
@@ -106,6 +107,7 @@ buildx) to be installed.
 | `shift+↑/↓`, `ctrl+pgup/pgdn`, mouse wheel | In a terminal: scroll back through the output |
 | `b`               | In images and builds: build an image, or show the running build |
 | `u`               | In images: pull an image, or show the running pull (`x` cancels) |
+| `ctrl+l` / `ctrl+o` | In Images: registry login / logout |
 | `u` / `enter`, `x`, `b` | In Projects: up, confirm down, rebuild |
 | `f`               | In Projects: open a local Compose file |
 | `x`               | In the build output: cancel the build (`esc` keeps it running) |
@@ -141,6 +143,17 @@ Compose source paths are retained separately for each daemon/context.
 sources. Missing or malformed preferences fall back to defaults with an error
 message for malformed files. No registry credentials are stored in this file.
 
+Private pulls reuse `auths`, `credsStore` and registry-specific `credHelpers`
+from Docker's `config.json` (`DOCKER_CONFIG` is honored), plus credentials
+provided through `DOCKER_AUTH_CONFIG`. Docker Hub aliases resolve to Docker's
+standard credential key. In Images, `ctrl+l` opens login and `ctrl+o` opens
+logout. Enter a registry hostname (and optional port), username, and password
+or access token. Login/logout use the Docker CLI and its configured credential
+store, as described in [Docker's login documentation](https://docs.docker.com/reference/cli/docker/login/).
+Passwords are masked, passed only through stdin, and excluded from status,
+command output and preferences. Authentication failures explain how to log in
+and retry the pull.
+
 ## Development
 
 ```sh
@@ -152,7 +165,10 @@ make run
 
 Integration tests skip an unavailable daemon locally. CI sets
 `DOCKER_TUI_INTEGRATION_REQUIRED=1` so missing prerequisites fail the run.
-The lifecycle fixture always uses `alpine:3.21` and cleans up its own container.
+The lifecycle fixture uses `alpine:3.21`; Compose and authenticated registry
+fixtures are isolated and cleaned up automatically. The registry fixture uses
+an ephemeral loopback port in the local Unix-socket daemon's host network and
+a temporary Docker config, leaving the user's credentials untouched.
 
 ## License
 

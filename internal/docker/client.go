@@ -204,6 +204,10 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values) 
 
 // doBody sends a request with a body of the given content type.
 func (c *Client) doBody(ctx context.Context, method, path string, query url.Values, body io.Reader, contentType string) (*http.Response, error) {
+	return c.doHeaders(ctx, method, path, query, body, contentType, nil)
+}
+
+func (c *Client) doHeaders(ctx context.Context, method, path string, query url.Values, body io.Reader, contentType string, headers http.Header) (*http.Response, error) {
 	u := c.base + path
 	if len(query) > 0 {
 		u += "?" + query.Encode()
@@ -214,6 +218,9 @@ func (c *Client) doBody(ctx context.Context, method, path string, query url.Valu
 	}
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
+	}
+	for key, values := range headers {
+		req.Header[key] = values
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {

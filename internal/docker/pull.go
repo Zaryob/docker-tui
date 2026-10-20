@@ -7,10 +7,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/zaryob/docker-tui/internal/registry"
 )
 
 // PullProgress is a progress message of an image pull. Messages with an ID
@@ -28,6 +31,7 @@ type PullProgress struct {
 
 // PullStream is the progress of a running pull.
 type PullStream struct {
+	auth registry.Auth
 	body io.ReadCloser
 	dec  *json.Decoder
 }
@@ -57,11 +61,15 @@ func (c *Client) PullImage(ctx context.Context, ref string) (*PullStream, error)
 	q := url.Values{}
 	q.Set("fromImage", image)
 	q.Set("tag", tag)
-	resp, err := c.do(ctx, http.MethodPost, "/images/create", q)
+	auth, err := (&registry.Client{}).Credentials(ctx, ref)
 	if err != nil {
 		return nil, err
 	}
-	return &PullStream{body: resp.Body, dec: json.NewDecoder(resp.Body)}, nil
+	resp, err := c.doHeaders(ctx, http.MethodPost, "/images/create", q, nil, "", http.Header{"X-Registry-Auth": []string{auth.Header()}})
+	if err != nil {
+		return nil, pullError(err, auth)
+	}
+	return &PullStream{auth: auth, body: resp.Body, dec: json.NewDecoder(resp.Body)}, nil
 }
 
 // Next returns the next progress message. It returns io.EOF when the pull
@@ -71,11 +79,25 @@ func (s *PullStream) Next() (PullProgress, error) {
 	if err := s.dec.Decode(&p); err != nil {
 		return p, err
 	}
+	p.ID = s.auth.Redact(p.ID)
+	p.Status = s.auth.Redact(p.Status)
+	p.Progress = s.auth.Redact(p.Progress)
+	p.Error = s.auth.Redact(p.Error)
 	if p.Error != "" {
-		return p, errors.New(p.Error)
+		return p, pullError(errors.New(p.Error), s.auth)
 	}
 	return p, nil
 }
 
 // Close stops reading the progress, which cancels the pull.
 func (s *PullStream) Close() error { return s.body.Close() }
+
+func pullError(err error, auth registry.Auth) error {
+	message := auth.Redact(err.Error())
+	lower := strings.ToLower(message)
+	var apiErr *APIError
+	if (errors.As(err, &apiErr) && (apiErr.StatusCode == http.StatusUnauthorized || apiErr.StatusCode == http.StatusForbidden)) || strings.Contains(lower, "unauthorized") || strings.Contains(lower, "access denied") || strings.Contains(lower, "authentication required") {
+		return fmt.Errorf("%s; use ctrl+l in Images to log in, then retry the pull", message)
+	}
+	return errors.New(message)
+}
