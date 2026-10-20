@@ -24,6 +24,9 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Keep explicitly opened local Compose sources across daemon refreshes and
+  application restarts, and keep the registry password label on one line.
+
 - Real-daemon tests use a known Alpine fixture and the selected daemon context,
   assert log/process/stop/removal behavior, and fail on unavailable prerequisites
   in CI instead of silently skipping integration coverage.

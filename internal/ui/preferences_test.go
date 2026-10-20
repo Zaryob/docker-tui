@@ -24,6 +24,7 @@ func TestPreferencesPersistUIChangesAndProjects(t *testing.T) {
 	a.Update(keyRunes("shop"))
 	a.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	project := localProject(t)
+	project.LocalSource = true
 	form := &composeForm{}
 	a.pane = form
 	a.Update(openComposeMsg{form: form, project: project})
@@ -32,7 +33,7 @@ func TestPreferencesPersistUIChangesAndProjects(t *testing.T) {
 	if tab.filter != "shop" || tab.sortCol != 0 || !tab.sortDesc || !restored.onlyRunning {
 		t.Fatalf("restored filter=%q sort=%d/%v stopped=%v", tab.filter, tab.sortCol, tab.sortDesc, restored.onlyRunning)
 	}
-	if restored.projects[project.Name].ConfigFiles != project.ConfigFiles {
+	if restored.projects[project.Name].ConfigFiles != project.ConfigFiles || !restored.projects[project.Name].LocalSource {
 		t.Fatal("project source lost")
 	}
 	if restored.tabs[tabProjects].loaded {

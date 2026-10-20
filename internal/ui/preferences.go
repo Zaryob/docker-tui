@@ -48,7 +48,7 @@ func (a *App) restorePreferences() {
 		if saved.Name == "" || saved.Files == "" {
 			continue
 		}
-		a.projects[saved.Name] = buildx.Project{Name: saved.Name, ConfigFiles: saved.Files, WorkingDir: saved.WorkingDirectory, Status: "not running"}
+		a.projects[saved.Name] = buildx.Project{Name: saved.Name, ConfigFiles: saved.Files, WorkingDir: saved.WorkingDirectory, Status: "not running", LocalSource: saved.LocalSource}
 	}
 	// Rebuild rows without marking discovery as complete; the first visit still
 	// queries the selected daemon for running and externally created projects.
@@ -69,7 +69,7 @@ func (a *App) preferenceSnapshot() preferences.State {
 	var projects []preferences.Project
 	for _, p := range a.projects {
 		if p.ConfigFiles != "" {
-			projects = append(projects, preferences.Project{Name: p.Name, Files: p.ConfigFiles, WorkingDirectory: p.WorkingDir})
+			projects = append(projects, preferences.Project{Name: p.Name, Files: p.ConfigFiles, WorkingDirectory: p.WorkingDir, LocalSource: p.LocalSource})
 		}
 	}
 	sort.Slice(projects, func(i, j int) bool { return projects[i].Name < projects[j].Name })

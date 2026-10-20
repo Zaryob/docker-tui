@@ -30,6 +30,9 @@ func TestRegistryFormMasksAndClearsPassword(t *testing.T) {
 	f.inputs[0].SetValue("private.example")
 	f.inputs[1].SetValue("alice")
 	f.inputs[2].SetValue("private-password")
+	if strings.Contains(f.inputs[2].View(), "\n") {
+		t.Fatal("password prompt wraps across lines")
+	}
 	if strings.Contains(f.view(), "private-password") {
 		t.Fatal("password visible")
 	}

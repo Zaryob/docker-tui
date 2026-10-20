@@ -43,7 +43,7 @@ func (a *App) openRegistry(logout bool) tea.Cmd {
 
 func newRegistryForm(logout bool, client *registry.Client) *registryForm {
 	f := &registryForm{logout: logout, client: client}
-	prompts := []string{"Registry  ", "Username  ", "Password / access token  "}
+	prompts := []string{"Registry  ", "Username  ", "Password  "}
 	if logout {
 		prompts = prompts[:1]
 	}
@@ -57,6 +57,7 @@ func newRegistryForm(logout bool, client *registry.Client) *registryForm {
 		if i == 2 {
 			in.EchoMode = textinput.EchoPassword
 			in.EchoCharacter = '•'
+			in.Placeholder = "password or access token"
 		}
 		f.inputs = append(f.inputs, in)
 	}

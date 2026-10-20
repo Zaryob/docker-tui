@@ -35,6 +35,7 @@ func (l *List) UnmarshalJSON(data []byte) error {
 
 // Project is a local Compose source retained after its containers are removed.
 type Project struct {
+	LocalSource      bool   `json:"local_source,omitempty"`
 	Name             string `json:"name"`
 	Files            string `json:"files"`
 	WorkingDirectory string `json:"working_directory,omitempty"`
