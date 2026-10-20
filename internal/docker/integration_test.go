@@ -9,8 +9,8 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,21 +19,31 @@ import (
 	"time"
 
 	"github.com/zaryob/docker-tui/internal/archive"
+	"github.com/zaryob/docker-tui/internal/buildx"
 	"github.com/zaryob/docker-tui/internal/docker"
 )
+
+// Local runs may skip missing prerequisites. CI must exercise the daemon.
+func unavailable(t *testing.T, format string, args ...any) {
+	t.Helper()
+	if os.Getenv("DOCKER_TUI_INTEGRATION_REQUIRED") == "1" {
+		t.Fatalf(format, args...)
+	}
+	t.Skipf(format, args...)
+}
 
 func integrationClient(t *testing.T) *docker.Client {
 	t.Helper()
 	c, err := docker.NewClient("")
 	if err != nil {
-		t.Skipf("skipping integration test: cannot configure docker client: %v", err)
+		unavailable(t, "cannot configure docker client: %v", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	v, err := c.ServerVersion(ctx)
 	if err != nil {
-		t.Skipf("skipping integration test: docker daemon unreachable: %v", err)
+		unavailable(t, "docker daemon unreachable: %v", err)
 	}
 	t.Logf("connected to Docker daemon %s (API %s)", v.Version, v.APIVersion)
 	return c
@@ -81,63 +91,41 @@ func TestRealDaemonContainerOperations(t *testing.T) {
 	// Check if docker CLI is available to launch a test container
 	dockerBin, err := exec.LookPath("docker")
 	if err != nil {
-		t.Skip("docker CLI not available to launch test container")
+		unavailable(t, "docker CLI not available to launch test container")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-
-	// Find an existing image to use
-	images, err := c.ListImages(ctx)
-	if err != nil {
-		t.Fatalf("ListImages: %v", err)
+	cliEnv := buildx.EnvFor(os.Environ(), c.Host(), c.Context())
+	cli := func(ctx context.Context, args ...string) *exec.Cmd {
+		cmd := exec.CommandContext(ctx, dockerBin, args...)
+		cmd.Env = cliEnv
+		return cmd
 	}
-	var testImage string
-	for _, img := range images {
-		for _, tag := range img.RepoTags {
-			if tag != "<none>:<none>" {
-				testImage = tag
-				break
-			}
-		}
-		if testImage != "" {
-			break
-		}
+	// Always use the known fixture, regardless of other images on the daemon.
+	const testImage = "alpine:3.21"
+	if out, err := cli(ctx, "pull", testImage).CombinedOutput(); err != nil {
+		t.Fatalf("pull fixture: %v (%s)", err, out)
 	}
-	if testImage == "" {
-		// Pull alpine:latest
-		pullCmd := exec.CommandContext(ctx, dockerBin, "pull", "alpine:latest")
-		if err := pullCmd.Run(); err != nil {
-			t.Skipf("cannot pull alpine test image: %v", err)
-		}
-		testImage = "alpine:latest"
-	}
-
 	containerName := fmt.Sprintf("dtui-test-%d", time.Now().UnixNano())
-	runCmd := exec.CommandContext(ctx, dockerBin, "run", "-d",
-		"--name", containerName,
-		"--label", "docker-tui-test=true",
-		testImage,
-		"sh", "-c", "echo 'hello from dtui test' && sleep 30",
-	)
-	out, err := runCmd.CombinedOutput()
-	if err != nil {
-		t.Skipf("docker run failed: %v (%s)", err, strings.TrimSpace(string(out)))
-	}
-	containerID := strings.TrimSpace(string(out))
-	if len(containerID) > 12 {
-		containerID = containerID[:12]
-	}
-
-	// Clean up after test
+	// Register cleanup before creating anything, including partially failed runs.
+	removed := false
 	t.Cleanup(func() {
-		cleanCtx, cleanCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if removed {
+			return
+		}
+		cleanCtx, cleanCancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cleanCancel()
-		_ = exec.CommandContext(cleanCtx, dockerBin, "rm", "-f", containerName).Run()
+		if out, err := cli(cleanCtx, "rm", "-f", containerName).CombinedOutput(); err != nil {
+			t.Errorf("cleanup fixture: %v (%s)", err, out)
+		}
 	})
-
-	// Wait briefly for container to start
-	time.Sleep(300 * time.Millisecond)
+	out, err := cli(ctx, "run", "-d", "--name", containerName,
+		"--label", "docker-tui-test=true", testImage,
+		"sh", "-c", "echo 'hello from dtui test' && exec sleep 300").CombinedOutput()
+	if err != nil {
+		t.Fatalf("docker run: %v (%s)", err, out)
+	}
 
 	// 1. Inspect container
 	rawInspect, err := c.InspectContainer(ctx, containerName)
@@ -148,19 +136,24 @@ func TestRealDaemonContainerOperations(t *testing.T) {
 		t.Errorf("InspectContainer output does not contain %s", containerName)
 	}
 
-	// 2. Read logs
-	logsRC, err := c.Logs(ctx, containerName, docker.LogOptions{Follow: false, Tail: 10})
+	// 2. Follow until the fixture is ready; no arbitrary startup sleep.
+	logCtx, logCancel := context.WithTimeout(ctx, 10*time.Second)
+	defer logCancel()
+	logsRC, err := c.Logs(logCtx, containerName, docker.LogOptions{Follow: true, Tail: 10})
 	if err != nil {
-		t.Fatalf("Logs failed: %v", err)
+		t.Fatalf("Logs: %v", err)
 	}
-	logBytes, err := io.ReadAll(logsRC)
+	var logBytes []byte
+	buf := make([]byte, 4096)
+	for !bytes.Contains(logBytes, []byte("hello from dtui test")) {
+		n, err := logsRC.Read(buf)
+		logBytes = append(logBytes, buf[:n]...)
+		if err != nil {
+			logsRC.Close()
+			t.Fatalf("fixture readiness: %v (%q)", err, logBytes)
+		}
+	}
 	logsRC.Close()
-	if err != nil {
-		t.Fatalf("read logs error: %v", err)
-	}
-	if !strings.Contains(string(logBytes), "hello from dtui test") {
-		t.Logf("logs: %q", string(logBytes))
-	}
 
 	// 3. Copy file to container
 	var tarBuf bytes.Buffer
@@ -203,17 +196,33 @@ func TestRealDaemonContainerOperations(t *testing.T) {
 	}
 
 	// 5. Container top/processes
-	if procs, err := c.Top(ctx, containerName); err == nil {
-		t.Logf("container processes: %d", len(procs.Processes))
+	if procs, err := c.Top(ctx, containerName); err != nil || len(procs.Processes) == 0 {
+		t.Fatalf("Top: no processes or error: %v", err)
 	}
 
 	// 6. Stop container
 	if err := c.StopContainer(ctx, containerName); err != nil {
-		t.Logf("StopContainer: %v", err)
+		t.Fatalf("StopContainer: %v", err)
+	}
+
+	rawInspect, err = c.InspectContainer(ctx, containerName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stopped struct{ State struct{ Running bool } }
+	if err := json.Unmarshal(rawInspect, &stopped); err != nil {
+		t.Fatal(err)
+	}
+	if stopped.State.Running {
+		t.Fatal("container still running after stop")
 	}
 
 	// 7. Remove container
 	if err := c.RemoveContainer(ctx, containerName, true); err != nil {
-		t.Logf("RemoveContainer: %v", err)
+		t.Fatalf("RemoveContainer: %v", err)
+	}
+	removed = true
+	if _, err := c.InspectContainer(ctx, containerName); err == nil {
+		t.Fatal("container still exists after removal")
 	}
 }

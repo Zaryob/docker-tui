@@ -34,6 +34,8 @@ jobs:
 
       - name: Integration tests
         if: runner.os == 'Linux'
+        env:
+          DOCKER_TUI_INTEGRATION_REQUIRED: "1"
         run: go test -race -tags integration ./internal/docker
 
       - name: Build

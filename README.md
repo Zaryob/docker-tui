@@ -131,6 +131,10 @@ make vet
 make run
 ```
 
+Integration tests skip an unavailable daemon locally. CI sets
+`DOCKER_TUI_INTEGRATION_REQUIRED=1` so missing prerequisites fail the run.
+The lifecycle fixture always uses `alpine:3.21` and cleans up its own container.
+
 ## License
 
 Copyright (C) 2026 Suleyman Poyraz

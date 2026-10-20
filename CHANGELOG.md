@@ -3,6 +3,14 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- Real-daemon tests use a known Alpine fixture and the selected daemon context,
+  assert log/process/stop/removal behavior, and fail on unavailable prerequisites
+  in CI instead of silently skipping integration coverage.
+
 ## [0.6.3] - 2026-10-16
 
 ### Added
