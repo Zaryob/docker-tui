@@ -5,6 +5,13 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Projects tab (7) discovers Compose projects on the selected daemon and runs
+  up, confirmed down and rebuild with streamed, cancelable progress. Local
+  Compose files can be opened and projects remain accessible after down.
+- Real-daemon Compose lifecycle smoke test, required by CI and release gates.
+
 ### Fixed
 
 - Real-daemon tests use a known Alpine fixture and the selected daemon context,

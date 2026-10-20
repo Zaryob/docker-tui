@@ -8,11 +8,13 @@ single static binary with no dependency on the Docker SDK.
 ## Features
 
 - Browse **containers**, **images**, **volumes**, **networks**, **builds** and
-  **logs** in tabs
+  **logs** and **Compose projects** in seven tabs
 - Start, stop, restart, kill, pause/unpause and remove containers, one at a
   time or in bulk
 - Containers of a **compose project** are grouped under a foldable project
   row, like in Docker Desktop; actions on the row apply to the whole project
+- Run Compose project **up**, **down** and **rebuild**, with live progress and
+  cancellation; open local Compose files and retain projects after `down`
 - Follow container and build **logs** in real time, search with regex, toggle
   case sensitivity, inspect message details, and copy log lines or IDs
 - Live **stats**: CPU (with history), memory, network and block I/O
@@ -84,7 +86,7 @@ buildx) to be installed.
 
 | Key               | Action                                   |
 | ----------------- | ---------------------------------------- |
-| `tab` / `shift+tab`, `1`–`6` | Switch between tabs           |
+| `tab` / `shift+tab`, `1`–`7` | Switch between tabs           |
 | `↑`/`k`, `↓`/`j`  | Move the cursor                          |
 | `pgup`, `pgdn`, `g`, `G` | Page up/down, jump to top/bottom  |
 | `/`               | Filter the list (`enter` keeps, `esc` clears) |
@@ -103,6 +105,8 @@ buildx) to be installed.
 | `shift+↑/↓`, `ctrl+pgup/pgdn`, mouse wheel | In a terminal: scroll back through the output |
 | `b`               | In images and builds: build an image, or show the running build |
 | `u`               | In images: pull an image, or show the running pull (`x` cancels) |
+| `u` / `enter`, `x`, `b` | In Projects: up, confirm down, rebuild |
+| `f`               | In Projects: open a local Compose file |
 | `x`               | In the build output: cancel the build (`esc` keeps it running) |
 | `enter`           | In builds: show the logs of the build    |
 | `i`               | Inspect the selected object              |
@@ -121,6 +125,12 @@ buildx) to be installed.
 
 Actions such as start, stop, restart, kill, pause and remove apply to all
 marked objects, or to the selected one when nothing is marked.
+
+The Projects tab (7) discovers projects on the selected daemon. Operations need
+Compose files on this machine; `f` opens a local file when daemon paths are
+unavailable. Escape keeps an operation running; `u` reopens its output and `x`
+cancels it. `down` preserves volumes and retains the project in the current
+session so it can be started again. Compose requires the Docker CLI plugin.
 
 ## Development
 

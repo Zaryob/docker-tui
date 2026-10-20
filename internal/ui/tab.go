@@ -18,6 +18,7 @@ const (
 	tabNetworks
 	tabBuilds
 	tabLogs
+	tabProjects
 )
 
 // item is a single row of a resource tab.

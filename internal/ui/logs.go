@@ -727,7 +727,7 @@ func (l *logView) update(msg tea.Msg) tea.Cmd {
 			return nil
 		case key.Matches(msg, logKeys.Cancel) && l.cancelable && !l.done:
 			l.canceled = true
-			l.ended = "build canceled"
+			l.ended = strings.ToLower(l.kind) + " canceled"
 			l.close()
 			return nil
 		case key.Matches(msg, logKeys.Search):
@@ -800,7 +800,7 @@ var logKeys = logKeyMap{
 	Case:       key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "toggle case")),
 	Follow:     key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "toggle follow")),
 	Timestamps: key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "timestamps")),
-	Cancel:     key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "cancel build")),
+	Cancel:     key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "cancel operation")),
 	Back:       key.NewBinding(key.WithKeys("esc", "q"), key.WithHelp("esc", "back")),
 }
 

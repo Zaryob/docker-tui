@@ -39,8 +39,10 @@ type App struct {
 	pull *pullView
 	// build is the output of the running build, which keeps running when
 	// its view is closed.
-	build   *logView
-	version docker.Version
+	compose  *logView
+	projects map[string]buildx.Project
+	build    *logView
+	version  docker.Version
 
 	tabs   []*tab
 	active int
@@ -94,8 +96,10 @@ func New(client *docker.Client, opts Options) *App {
 			newNetworksTab(),
 			newBuildsTab(),
 			newLogsTab(),
+			newProjectsTab(),
 		},
-		help: help.New(),
+		projects: make(map[string]buildx.Project),
+		help:     help.New(),
 		spinner: spinner.New(
 			spinner.WithSpinner(spinner.MiniDot),
 			spinner.WithStyle(lipgloss.NewStyle().Foreground(colorAccent)),
@@ -265,7 +269,7 @@ func describeItems(items []item, noun string) string {
 // the active tab.
 func (a *App) removeDialog() *confirmDialog {
 	t := a.current()
-	if t.kind == tabLogs {
+	if t.kind == tabLogs || t.kind == tabProjects {
 		return nil
 	}
 	items := a.targets()
@@ -321,6 +325,8 @@ func (a *App) load(kind tabKind) tea.Cmd {
 		return a.loadNetworks
 	case tabBuilds:
 		return a.loadBuilds
+	case tabProjects:
+		return a.loadProjects
 	case tabLogs:
 		return a.loadLogs
 	}
@@ -428,6 +434,25 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.usagePolling = true
 			return a, a.loadUsage()
 		}
+	case projectsMsg:
+		a.mergeProjects(msg.projects, msg.err)
+	case openComposeMsg:
+		f, ok := a.pane.(*composeForm)
+		if !ok || f != msg.form {
+			return a, nil
+		}
+		f.loading = false
+		if msg.err != nil {
+			f.err = msg.err.Error()
+			return a, nil
+		}
+		f.close()
+		a.projects[msg.project.Name] = msg.project
+		a.refreshProjects()
+		a.pane = nil
+		a.active = int(tabProjects)
+		a.layout()
+		return a, a.setStatus("opened Compose project "+msg.project.Name, false)
 	case usageMsg:
 		a.usage = msg.usage
 		t := a.tabs[tabContainers]
@@ -498,6 +523,13 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, cmd
 		}
 	case logChunkMsg:
+		if a.compose != nil && msg.gen == a.compose.gen {
+			cmd := a.compose.update(msg)
+			if a.compose.done {
+				return a, tea.Batch(cmd, a.composeFinished())
+			}
+			return a, cmd
+		}
 		if a.build != nil && msg.gen == a.build.gen {
 			cmd := a.build.update(msg)
 			if a.build.done {
@@ -553,6 +585,10 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 			a.pane = nil
 			a.layout()
 			return a.setStatus("pull continues in the background; u shows it again", false)
+		case key.Matches(msg, keys.Back) && a.pane == asPane(a.compose):
+			a.pane = nil
+			a.layout()
+			return a.setStatus("Compose continues in the background; 7 then u shows progress", false)
 		case key.Matches(msg, keys.Back) && a.pane == asPane(a.build):
 			// Closing the output of a build leaves the build running.
 			a.pane = nil
@@ -565,6 +601,7 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 			return nil
 		case msg.String() == "ctrl+c":
 			a.pane.close()
+			a.closeOperations()
 			return tea.Quit
 		}
 		return a.pane.update(msg)
@@ -587,6 +624,7 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		a.filter.CursorEnd()
 		return a.filter.Focus()
 	case key.Matches(msg, keys.Quit):
+		a.closeOperations()
 		return tea.Quit
 	case key.Matches(msg, keys.Help):
 		a.help.ShowAll = !a.help.ShowAll
@@ -624,6 +662,9 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	case key.Matches(msg, keys.CopyID):
 		return a.copyID()
 	default:
+		if t.kind == tabProjects {
+			return a.projectKeys(msg)
+		}
 		if t.kind == tabContainers {
 			return a.containerKeys(msg)
 		}
@@ -679,6 +720,9 @@ func (a *App) helpKeys() help.KeyMap {
 			return m.keyMap()
 		}
 		return paneKeyMap{}
+	}
+	if a.current().kind == tabProjects {
+		return projectKeyMap{}
 	}
 	return keys
 }
@@ -791,6 +835,9 @@ func (a *App) statusLine() string {
 	if bi := a.buildIndicator(); bi != "" {
 		prefix += bi + statusStyle.Render(" · ")
 	}
+	if ci := a.composeIndicator(); ci != "" {
+		prefix += ci + statusStyle.Render(" · ")
+	}
 	if pi := a.pullIndicator(); pi != "" {
 		prefix += pi + statusStyle.Render(" · ")
 	}
@@ -821,4 +868,16 @@ func countNoun(n int, plural string) string {
 		return "1 " + strings.TrimSuffix(plural, "s")
 	}
 	return fmt.Sprintf("%d %s", n, plural)
+}
+
+func (a *App) closeOperations() {
+	if a.compose != nil {
+		a.compose.close()
+	}
+	if a.build != nil {
+		a.build.close()
+	}
+	if a.pull != nil {
+		a.pull.close()
+	}
 }

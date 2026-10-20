@@ -31,7 +31,7 @@ jobs:
       - name: Integration tests
         env:
           DOCKER_TUI_INTEGRATION_REQUIRED: "1"
-        run: go test -race -tags integration ./internal/docker
+        run: go test -race -tags integration ./...
 
       - uses: goreleaser/goreleaser-action@v6
         with:
