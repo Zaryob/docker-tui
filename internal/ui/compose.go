@@ -66,8 +66,8 @@ func (a *App) mergeProjects(projects []buildx.Project, err error) {
 		a.projects[name] = p
 	}
 	for _, p := range projects {
-		if old, ok := a.projects[p.Name]; ok && p.ConfigFiles == "" {
-			p.ConfigFiles, p.WorkingDir = old.ConfigFiles, old.WorkingDir
+		if old, ok := a.projects[p.Name]; ok && (old.LocalSource || p.ConfigFiles == "") {
+			p.ConfigFiles, p.WorkingDir, p.LocalSource = old.ConfigFiles, old.WorkingDir, old.LocalSource
 		}
 		a.projects[p.Name] = p
 	}

@@ -16,6 +16,8 @@ import (
 
 // Project describes a Compose project and its local source files.
 type Project struct {
+	// LocalSource keeps an explicitly opened local file ahead of daemon labels.
+	LocalSource bool   `json:"-"`
 	Name        string `json:"Name"`
 	Status      string `json:"Status"`
 	ConfigFiles string `json:"ConfigFiles"`
@@ -91,7 +93,7 @@ func (c *CLI) OpenCompose(ctx context.Context, file string) (Project, error) {
 	if err := json.Unmarshal(out, &config); err != nil {
 		return Project{}, fmt.Errorf("read Compose project name: %w", err)
 	}
-	p := Project{Name: config.Name, ConfigFiles: file, WorkingDir: filepath.Dir(file), Status: "not running"}
+	p := Project{LocalSource: true, Name: config.Name, ConfigFiles: file, WorkingDir: filepath.Dir(file), Status: "not running"}
 	_, err = p.Args()
 	return p, err
 }

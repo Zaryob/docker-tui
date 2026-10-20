@@ -85,13 +85,14 @@ func TestUntarRejectsFileSymlinkEscapes(t *testing.T) {
 						t.Fatal(err)
 					}
 					link := victim
-					if kind == "relative" {
+					switch kind {
+					case "relative":
 						var err error
 						link, err = filepath.Rel(dst, victim)
 						if err != nil {
 							t.Fatal(err)
 						}
-					} else if kind == "dangling" {
+					case "dangling":
 						victim = filepath.Join(outside, "missing")
 						link = victim
 					}

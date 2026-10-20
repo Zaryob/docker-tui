@@ -878,6 +878,6 @@ func (a *App) closeOperations() {
 		a.build.close()
 	}
 	if a.pull != nil {
-		a.pull.close()
+		a.pull.stop()
 	}
 }

@@ -3,20 +3,24 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.7.0] - 2026-10-20
 
 ### Added
 
-- Projects tab (7) discovers Compose projects on the selected daemon and runs
-  up, confirmed down and rebuild with streamed, cancelable progress. Local
-  Compose files can be opened and projects remain accessible after down.
-- Real-daemon Compose lifecycle smoke test, required by CI and release gates.
+- Projects tab (7) discovers Compose projects on the selected Docker daemon.
+- Project up, confirmed down and rebuild operations stream progress, support
+  cancellation and continue in the background when their output is closed.
+- Open local Compose files when daemon paths are unavailable; explicitly opened
+  sources survive daemon refreshes, and projects remain accessible after down
+  within the current session.
+- Isolated real-daemon Compose lifecycle integration coverage.
 
 ### Fixed
 
-- Real-daemon tests use a known Alpine fixture and the selected daemon context,
-  assert log/process/stop/removal behavior, and fail on unavailable prerequisites
-  in CI instead of silently skipping integration coverage.
+- Real-daemon tests use a known Alpine fixture and the selected context, verify
+  logs/processes/stop/removal, and fail on missing prerequisites in CI.
+- CI and tagged releases require integration tests and integration-aware lint.
+- Clipboard fallback status, log snapshot limits and outstanding lint issues.
 
 ## [0.6.3] - 2026-10-16
 

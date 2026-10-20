@@ -35,7 +35,7 @@ type CLI struct {
 }
 
 // ErrNoCLI is returned when the docker CLI is not installed.
-var ErrNoCLI = errors.New("docker CLI not found in PATH; it is required for builds")
+var ErrNoCLI = errors.New("docker CLI not found in PATH; it is required for builds and Compose")
 
 func (c *CLI) command(ctx context.Context, args ...string) (*exec.Cmd, error) {
 	var cmd *exec.Cmd

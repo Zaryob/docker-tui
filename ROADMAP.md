@@ -24,7 +24,7 @@ are separate from the implementation work.
 - Update the README for six tabs, structured logs and actual test commands.
 - Gate: full checks, real-daemon tests and workflow review.
 
-## v0.7.0 — Compose project operations (implemented; publication pending)
+## v0.7.0 — Compose project operations (release prepared)
 
 - Discover Compose projects through the selected daemon's Docker CLI context.
 - Run project `up`, `down` and rebuild (`up --build`) with streamed progress,

@@ -382,7 +382,7 @@ func (l *logView) render() {
 }
 
 func (l *logView) formatRow(idx int, entry logEntry, hlMsg string) string {
-	cb := "[ ]"
+	var cb string
 	if l.marked[idx] {
 		cb = markStyle.Render("[✓]")
 	} else {
@@ -561,8 +561,10 @@ func (l *logView) copySelected() string {
 	if len(texts) == 0 {
 		return ""
 	}
-	copyToClipboard(strings.Join(texts, "\n"))
-	return fmt.Sprintf("copied %s to clipboard", countNoun(len(texts), "log line"))
+	if err := copyToClipboard(strings.Join(texts, "\n")); err != nil {
+		return fmt.Sprintf("sent %s to terminal clipboard (OSC 52)", countNoun(len(texts), "log lines"))
+	}
+	return fmt.Sprintf("copied %s to clipboard", countNoun(len(texts), "log lines"))
 }
 
 func (l *logView) update(msg tea.Msg) tea.Cmd {
@@ -896,11 +898,12 @@ func (l *logView) view() string {
 	)
 
 	var searchContent string
-	if l.searching {
+	switch {
+	case l.searching:
 		searchContent = l.search.View()
-	} else if l.query != "" {
+	case l.query != "":
 		searchContent = lipgloss.NewStyle().Foreground(colorAccent).Render("🔍 ") + l.query
-	} else {
+	default:
 		searchContent = lipgloss.NewStyle().Foreground(colorAccent).Render("🔍 ") +
 			statusStyle.Render("Search logs (supports regex like \"/error|warn/\")")
 	}

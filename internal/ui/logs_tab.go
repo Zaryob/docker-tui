@@ -34,16 +34,18 @@ func (it item) objectID() string {
 	return it.id
 }
 
-func logTabItems(rc io.Reader, sourceID, name string, isBuild bool, fallback time.Time, colorIndex, limit int) ([]item, error) {
+const logSnapshotLimit = 15
+
+func logTabItems(rc io.Reader, sourceID, name string, isBuild bool, fallback time.Time, colorIndex int) ([]item, error) {
 	sc := bufio.NewScanner(rc)
 	sc.Buffer(make([]byte, 64*1024), 1024*1024)
-	items := make([]item, 0, limit)
+	items := make([]item, 0, logSnapshotLimit)
 	occurrences := make(map[[32]byte]int)
 	kind, icon := "container", "📦 "
 	if isBuild {
 		kind, icon = "build", "🔧 "
 	}
-	for len(items) < limit && sc.Scan() {
+	for len(items) < logSnapshotLimit && sc.Scan() {
 		line := sc.Text()
 		entry := parseLogLine(line, name, isBuild, fallback, colorIndex)
 		digest := sha256.Sum256([]byte(line))
@@ -109,12 +111,12 @@ func (a *App) loadLogs() tea.Msg {
 		if name == "" {
 			name = c.ID[:min(12, len(c.ID))]
 		}
-		rc, err := a.client.Logs(ctx, c.ID, docker.LogOptions{Follow: false, Tail: 15, Timestamps: true})
+		rc, err := a.client.Logs(ctx, c.ID, docker.LogOptions{Follow: false, Tail: logSnapshotLimit, Timestamps: true})
 		if err != nil {
 			report("container "+name, err)
 			continue
 		}
-		rows, err := logTabItems(rc, c.ID, name, false, time.Now(), i, 15)
+		rows, err := logTabItems(rc, c.ID, name, false, time.Now(), i)
 		rc.Close()
 		items = append(items, rows...)
 		report("container "+name, err)
@@ -136,7 +138,7 @@ func (a *App) loadLogs() tea.Msg {
 			report("build "+name, err)
 			continue
 		}
-		rows, err := logTabItems(rc, r.ID(), name, true, r.CreatedAt, i, 15)
+		rows, err := logTabItems(rc, r.ID(), name, true, r.CreatedAt, i)
 		rc.Close()
 		items = append(items, rows...)
 		report("build "+name, err)

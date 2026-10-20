@@ -22,7 +22,7 @@ func TestLogTabRowsHaveStableUniqueIDs(t *testing.T) {
 		"2026-10-15T12:00:02Z repeated",
 		"2026-10-15T12:00:02Z repeated",
 	}
-	rows, err := logTabItems(strings.NewReader(strings.Join(lines, "\n")), "source", "web", false, time.Time{}, 0, 15)
+	rows, err := logTabItems(strings.NewReader(strings.Join(lines, "\n")), "source", "web", false, time.Time{}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestLogTabRowsHaveStableUniqueIDs(t *testing.T) {
 			t.Fatalf("row source = %+v", entry)
 		}
 	}
-	updated, err := logTabItems(strings.NewReader(strings.Join(lines[1:], "\n")), "source", "web", false, time.Now(), 0, 15)
+	updated, err := logTabItems(strings.NewReader(strings.Join(lines[1:], "\n")), "source", "web", false, time.Now(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestOpenSelectedLogUsesSourceID(t *testing.T) {
 			}
 			// A container name may contain "build" without being a BuildKit
 			// history source. Routing must use the source type, not display data.
-			rows, err := logTabItems(strings.NewReader("message\n"), "actual-source", "build-worker", isBuild, time.Time{}, 0, 15)
+			rows, err := logTabItems(strings.NewReader("message\n"), "actual-source", "build-worker", isBuild, time.Time{}, 0)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -191,7 +191,7 @@ func TestLoadLogsReportsScannerErrorsWithPartialRows(t *testing.T) {
 }
 
 func TestLogTabReportsOversizedLines(t *testing.T) {
-	rows, err := logTabItems(strings.NewReader("first\n"+strings.Repeat("x", 1024*1024)), "source", "web", false, time.Time{}, 0, 15)
+	rows, err := logTabItems(strings.NewReader("first\n"+strings.Repeat("x", 1024*1024)), "source", "web", false, time.Time{}, 0)
 	if err == nil || len(rows) != 1 {
 		t.Fatalf("oversized line: rows %d, err %v", len(rows), err)
 	}

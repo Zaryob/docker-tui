@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/zaryob/docker-tui/internal/buildx"
 )
 
@@ -83,5 +84,17 @@ func TestComposeMissingFilesAndStaleForms(t *testing.T) {
 	a.Update(openComposeMsg{form: old, project: localProject(t)})
 	if a.pane != current || len(a.projects) != 0 {
 		t.Fatal("stale form changed current screen")
+	}
+}
+
+func TestOpenedComposeSourceSurvivesDaemonRefresh(t *testing.T) {
+	a := newTestApp(t, http.NotFoundHandler())
+	p := localProject(t)
+	p.LocalSource = true
+	a.projects[p.Name] = p
+	a.mergeProjects([]buildx.Project{{Name: p.Name, ConfigFiles: "/remote/compose.yaml", WorkingDir: "/remote", Status: "running(1)"}}, nil)
+	got := a.projects[p.Name]
+	if got.ConfigFiles != p.ConfigFiles || !got.LocalSource || got.Status != "running(1)" {
+		t.Fatal("daemon labels replaced the explicitly opened local source")
 	}
 }
