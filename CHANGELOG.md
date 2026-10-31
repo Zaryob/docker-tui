@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.9.0] - 2026-10-20
+## [0.9.0] - 2026-10-31
 
 ### Added
 
@@ -22,7 +22,7 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   failure and show the same recovery guidance as other daemon versions.
 - Keep the registry password label on one line in the terminal UI.
 
-## [0.8.0] - 2026-10-20
+## [0.8.0] - 2026-10-31
 
 ### Added
 
