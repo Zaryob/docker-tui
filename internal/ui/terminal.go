@@ -139,6 +139,7 @@ func (a *App) newTerminal(kind string, connect func(id string) termConnect) tea.
 	v.emu.SetScrollbackSize(terminalScrollback)
 	v.setSize(a.width, a.bodyHeight())
 	a.pane = v
+	a.layout()
 	return v.start()
 }
 

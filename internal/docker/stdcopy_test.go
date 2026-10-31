@@ -50,3 +50,16 @@ func TestDemuxTruncated(t *testing.T) {
 		t.Fatal("Demux of truncated frame succeeded, want error")
 	}
 }
+
+func TestDemuxSystemMessageBounded(t *testing.T) {
+	// A header announcing gigabytes must not be trusted; the message is
+	// read up to the bound and reported.
+	h := make([]byte, stdHeaderLen)
+	h[0] = StreamSystem
+	binary.BigEndian.PutUint32(h[4:], 1<<31)
+	body := strings.Repeat("x", stdSystemMax)
+	err := Demux(bytes.NewReader(append(h, body...)), &bytes.Buffer{}, &bytes.Buffer{})
+	if err == nil || !strings.HasPrefix(err.Error(), "docker: xxxx") {
+		t.Fatalf("Demux error = %v, want bounded system error", err)
+	}
+}

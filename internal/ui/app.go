@@ -320,24 +320,40 @@ func (a *App) removeDialog() *confirmDialog {
 func (a *App) current() *tab { return a.tabs[a.active] }
 
 // load returns a command that reloads the given tab.
+// load returns a command that reloads the list of a tab. Loads run
+// concurrently and may finish out of order, so each result carries a
+// sequence number and an older result never replaces a newer list.
 func (a *App) load(kind tabKind) tea.Cmd {
+	var fn func() tea.Msg
 	switch kind {
 	case tabContainers:
-		return a.loadContainers
+		fn = a.loadContainers()
 	case tabImages:
-		return a.loadImages
+		fn = a.loadImages
 	case tabVolumes:
-		return a.loadVolumes
+		fn = a.loadVolumes
 	case tabNetworks:
-		return a.loadNetworks
+		fn = a.loadNetworks
 	case tabBuilds:
-		return a.loadBuilds
+		fn = a.loadBuilds
 	case tabProjects:
-		return a.loadProjects
+		fn = a.loadProjects
 	case tabLogs:
-		return a.loadLogs
+		fn = a.loadLogs
+	default:
+		return nil
 	}
-	return nil
+	t := a.tabs[kind]
+	t.loadSeq++
+	seq := t.loadSeq
+	return func() tea.Msg {
+		msg := fn()
+		if lm, ok := msg.(listMsg); ok {
+			lm.seq = seq
+			return lm
+		}
+		return msg
+	}
 }
 
 // Init implements tea.Model.
@@ -382,6 +398,8 @@ func (a *App) switchTab(i int) tea.Cmd {
 	}
 	a.current().clearRange()
 	a.active = i
+	// The help line differs between tabs, and with it the room for the list.
+	a.layout()
 	if !a.current().loaded {
 		return a.load(a.current().kind)
 	}
@@ -441,6 +459,11 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case listMsg:
 		t := a.tabs[msg.kind]
+		if msg.seq != 0 && msg.seq < t.appliedSeq {
+			// A newer list has already been shown.
+			return a, nil
+		}
+		t.appliedSeq = max(t.appliedSeq, msg.seq)
 		t.loadErr = msg.err
 		if msg.err == nil || msg.partial {
 			if msg.kind == tabContainers {
@@ -582,13 +605,16 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, a.pane.update(msg)
 		}
 	case termStartedMsg:
-		// A terminal closed before it connected leaves its session behind.
-		if a.pane == nil && msg.sess != nil {
-			msg.sess.conn.Close()
+		// A terminal closed or replaced before it connected leaves its
+		// session behind; close it here.
+		v, ok := a.pane.(*terminalView)
+		if !ok || v.gen != msg.gen {
+			if msg.sess != nil {
+				msg.sess.conn.Close()
+			}
+			return a, nil
 		}
-		if a.pane != nil {
-			return a, a.pane.update(msg)
-		}
+		return a, v.update(msg)
 	case termOutputMsg, termEndedMsg, termSettleMsg:
 		if a.pane != nil {
 			return a, a.pane.update(msg)

@@ -63,6 +63,7 @@ func (a *App) openTop() tea.Cmd {
 	}
 	v.setSize(a.width, a.bodyHeight())
 	a.pane = v
+	a.layout()
 	return v.fetch()
 }
 

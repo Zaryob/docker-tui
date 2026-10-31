@@ -32,7 +32,7 @@ func (a *App) pruneDialog() *confirmDialog {
 	case tabNetworks:
 		what, prune = "all unused networks", a.client.PruneNetworks
 	case tabBuilds:
-		what, prune = "the whole build history", a.pruneBuilds
+		what, prune = "the whole build history", a.pruneBuilds(len(t.all))
 	default:
 		return nil
 	}

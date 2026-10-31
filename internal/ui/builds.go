@@ -124,6 +124,7 @@ func (a *App) openBuildLogs() tea.Cmd {
 		return cli.Logs(ctx, id)
 	}}}
 	a.pane = l
+	a.layout()
 	return l.start()
 }
 
@@ -368,11 +369,14 @@ func (buildFormKeys) ShortHelp() []key.Binding {
 
 func (k buildFormKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
 
-// pruneBuilds removes the whole build history.
-func (a *App) pruneBuilds(ctx context.Context) (docker.PruneReport, error) {
-	n := len(a.tabs[tabBuilds].all)
-	if err := a.buildx.RemoveAll(ctx); err != nil {
-		return docker.PruneReport{}, err
+// pruneBuilds returns a function removing the whole build history; n is
+// the number of records known when the prune was requested.
+func (a *App) pruneBuilds(n int) func(context.Context) (docker.PruneReport, error) {
+	buildx := a.buildx
+	return func(ctx context.Context) (docker.PruneReport, error) {
+		if err := buildx.RemoveAll(ctx); err != nil {
+			return docker.PruneReport{}, err
+		}
+		return docker.PruneReport{Deleted: n}, nil
 	}
-	return docker.PruneReport{Deleted: n}, nil
 }

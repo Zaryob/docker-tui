@@ -7,6 +7,7 @@ import (
 	"context"
 	"io"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -57,6 +58,11 @@ func TestBuildArgs(t *testing.T) {
 	}
 	if got := (BuildOptions{Context: "."}).Args(); !slices.Equal(got, []string{"build", "--progress", "plain", "."}) {
 		t.Errorf("minimal args = %q", got)
+	}
+	// A context that looks like a flag, "-" included, stays a path.
+	dash := "." + string(filepath.Separator) + "-"
+	if got := (BuildOptions{Context: "-"}).Args(); !slices.Equal(got, []string{"build", "--progress", "plain", dash}) {
+		t.Errorf("dash context args = %q", got)
 	}
 }
 

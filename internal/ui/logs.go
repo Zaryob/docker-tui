@@ -21,7 +21,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/mattn/go-runewidth"
 
 	"github.com/zaryob/docker-tui/internal/docker"
 )
@@ -87,8 +86,9 @@ func parseLogLine(raw, defaultObj string, isBuild bool, defaultTime time.Time, c
 	}
 	s := strings.TrimRight(raw, "\r")
 
-	// Multi-container prefix like "name | ..."
-	if idx := strings.Index(s, " | "); idx > 0 && idx < 30 {
+	// Multi-container prefix like "name | ...". The name may be colored,
+	// so measure the visible width rather than the bytes.
+	if idx := strings.Index(s, " | "); idx > 0 && ansi.StringWidth(s[:idx]) < 30 {
 		entry.object = strings.TrimSpace(ansi.Strip(s[:idx]))
 		s = s[idx+3:]
 	}
@@ -205,9 +205,21 @@ func newLogView(name string, width, height int) *logView {
 }
 
 func (l *logView) setSize(width, height int) {
+	if l.vp.Width == width && l.vp.Height == max(height-6, 1) {
+		return
+	}
 	l.vp.Width = width
 	// Header (1) + search box (3) + column header (1) + divider (1) = 6 lines
 	l.vp.Height = max(height-6, 1)
+	// Rows are cut to the width when rendered, so rebuild them.
+	if len(l.lines) > 0 {
+		l.render()
+		if l.follow {
+			l.vp.GotoBottom()
+		} else {
+			l.vp.SetYOffset(l.vp.YOffset)
+		}
+	}
 }
 
 // openLogs opens the log view for the marked containers or, when none is marked.
@@ -227,6 +239,7 @@ func (a *App) openLogs() tea.Cmd {
 	l := newLogView(name, a.width, a.bodyHeight())
 	l.client, l.sources = a.client, sources
 	a.pane = l
+	a.layout()
 	return l.start()
 }
 
@@ -251,7 +264,8 @@ func logPrefixes(sources []logSource) []string {
 	prefixes := make([]string, len(sources))
 	for i, src := range sources {
 		style := lipgloss.NewStyle().Foreground(logPrefixColors[i%len(logPrefixColors)])
-		prefixes[i] = style.Render(src.name+strings.Repeat(" ", width-ansi.StringWidth(src.name))+" |") + " "
+		// The separator stays outside the color so parseLogLine finds it.
+		prefixes[i] = style.Render(src.name+strings.Repeat(" ", width-ansi.StringWidth(src.name))) + " | "
 	}
 	return prefixes
 }
@@ -381,6 +395,16 @@ func (l *logView) render() {
 	l.vp.SetContent(strings.Join(rendered, "\n"))
 }
 
+// fitWidth cuts s to width cells, marking the cut with an ellipsis, and
+// pads it to exactly width. Escape sequences are preserved and take no room.
+func fitWidth(s string, width int) string {
+	s = ansi.Truncate(s, width, "…")
+	if pad := width - ansi.StringWidth(s); pad > 0 {
+		s += strings.Repeat(" ", pad)
+	}
+	return s
+}
+
 func (l *logView) formatRow(idx int, entry logEntry, hlMsg string) string {
 	var cb string
 	if l.marked[idx] {
@@ -396,7 +420,7 @@ func (l *logView) formatRow(idx int, entry logEntry, hlMsg string) string {
 		icon = "🔧 "
 	}
 	objStyle := lipgloss.NewStyle().Foreground(entry.color)
-	objStr := objStyle.Render(runewidth.FillRight(runewidth.Truncate(icon+entry.object, 16, "…"), 16))
+	objStr := objStyle.Render(fitWidth(icon+entry.object, 16))
 
 	isSelected := (idx == l.cursor)
 	endIcon := "⌄"
@@ -407,7 +431,9 @@ func (l *logView) formatRow(idx int, entry logEntry, hlMsg string) string {
 
 	fixedWidth := 3 + 2 + 19 + 2 + 16 + 2 + 2 + 2
 	msgWidth := max(l.vp.Width-fixedWidth-1, 10)
-	msgFormatted := runewidth.FillRight(runewidth.Truncate(hlMsg, msgWidth, "…"), msgWidth)
+	// The message may carry colors from the container or search highlights,
+	// so cut and pad it by its visible width.
+	msgFormatted := fitWidth(hlMsg, msgWidth)
 
 	line := fmt.Sprintf("%s  %s  %s  %s  %s", cb, timeStr, objStr, msgFormatted, endIconStr)
 	targetW := max(l.vp.Width, 10)

@@ -147,11 +147,17 @@ func projectRow(project string, members []item, collapsed bool) item {
 	}
 }
 
-func (a *App) loadContainers() tea.Msg {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	list, err := a.client.ListContainers(ctx, !a.onlyRunning)
-	return listMsg{kind: tabContainers, items: containerItems(list), err: err}
+// loadContainers returns a command listing the containers. The visibility
+// flag is captured here, in the update loop, because the command runs in
+// its own goroutine.
+func (a *App) loadContainers() tea.Cmd {
+	client, all := a.client, !a.onlyRunning
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		list, err := client.ListContainers(ctx, all)
+		return listMsg{kind: tabContainers, items: containerItems(list), err: err}
+	}
 }
 
 func containerItems(list []docker.Container) []item {
@@ -276,9 +282,9 @@ func (a *App) containerKeys(msg tea.KeyMsg) tea.Cmd {
 	case key.Matches(msg, keys.ToggleAll):
 		a.onlyRunning = !a.onlyRunning
 		if a.onlyRunning {
-			return tea.Batch(a.setStatus("showing running containers", false), a.loadContainers)
+			return tea.Batch(a.setStatus("showing running containers", false), a.load(tabContainers))
 		}
-		return tea.Batch(a.setStatus("showing all containers", false), a.loadContainers)
+		return tea.Batch(a.setStatus("showing all containers", false), a.load(tabContainers))
 	case key.Matches(msg, keys.Logs):
 		return a.openLogs()
 	case key.Matches(msg, keys.Exec):

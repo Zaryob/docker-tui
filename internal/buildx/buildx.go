@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -198,7 +199,13 @@ func (o BuildOptions) Args() []string {
 	if o.Dockerfile != "" {
 		args = append(args, "--file", o.Dockerfile)
 	}
-	return append(args, o.Context)
+	context := o.Context
+	if strings.HasPrefix(context, "-") {
+		// A directory named like a flag, or "-" alone, must reach the
+		// CLI as a path and not as an option or a request for stdin.
+		context = "." + string(filepath.Separator) + context
+	}
+	return append(args, context)
 }
 
 // Build starts an image build and returns its combined output. Reading

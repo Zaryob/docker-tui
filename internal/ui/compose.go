@@ -148,7 +148,7 @@ func (a *App) startCompose(p buildx.Project, action string) tea.Cmd {
 func (a *App) composeFinished() tea.Cmd {
 	l := a.compose
 	a.compose = nil
-	cmds := []tea.Cmd{a.loadProjects, a.load(tabContainers)}
+	cmds := []tea.Cmd{a.load(tabProjects), a.load(tabContainers)}
 	if a.tabs[tabImages].loaded {
 		cmds = append(cmds, a.load(tabImages))
 	}

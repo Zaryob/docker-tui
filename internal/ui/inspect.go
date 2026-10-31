@@ -58,6 +58,7 @@ func (a *App) openInspect() tea.Cmd {
 	v := &inspectView{gen: inspectGen, title: "Inspect: " + it.name, loading: true, vp: viewport.New(0, 0)}
 	v.setSize(a.width, a.bodyHeight())
 	a.pane = v
+	a.layout()
 
 	gen, id := v.gen, it.id
 	return func() tea.Msg {

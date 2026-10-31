@@ -40,6 +40,24 @@ func sshArgs(u *url.URL) ([]string, error) {
 	return append(args, "--", u.Hostname(), "docker", "system", "dial-stdio"), nil
 }
 
+// newSSHDialer returns a dialer for the daemon behind ssh. The first
+// connection is made before the user interface starts and may prompt for a
+// passphrase or an unknown host key; every later one runs in batch mode so
+// that a reconnection never prompts on a terminal the interface owns, and
+// fails with an ssh error instead.
+func newSSHDialer(args []string) func(ctx context.Context) (net.Conn, error) {
+	var first sync.Once
+	batch := append([]string{"-o", "BatchMode=yes"}, args...)
+	return func(ctx context.Context) (net.Conn, error) {
+		interactive := false
+		first.Do(func() { interactive = true })
+		if interactive {
+			return dialSSH(ctx, args)
+		}
+		return dialSSH(ctx, batch)
+	}
+}
+
 // dialSSH starts ssh and returns its standard input and output as a
 // connection to the daemon.
 func dialSSH(ctx context.Context, args []string) (net.Conn, error) {

@@ -38,6 +38,7 @@ func (a *App) openRegistry(logout bool) tea.Cmd {
 	f := newRegistryForm(logout, &registry.Client{Host: a.client.Host(), Context: a.client.Context()})
 	a.pane = f
 	a.layout()
+	a.layout()
 	return textinput.Blink
 }
 

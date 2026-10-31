@@ -62,6 +62,7 @@ func (a *App) openCopy() tea.Cmd {
 	f.setSize(a.width, a.bodyHeight())
 	a.pane = f
 	a.layout()
+	a.layout()
 	return textinput.Blink
 }
 

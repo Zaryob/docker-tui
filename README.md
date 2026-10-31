@@ -78,7 +78,10 @@ Remote daemons are supported the same way as in the docker CLI:
   when the selected context has TLS material.
 - `ssh://[user@]host[:port]` connects through `ssh` and runs
   `docker system dial-stdio` on the remote host, so your ssh keys, agent and
-  `~/.ssh/config` apply. The remote host needs the docker CLI.
+  `~/.ssh/config` apply. The remote host needs the docker CLI. Only the
+  first connection may prompt (for a passphrase or an unknown host key);
+  later connections run ssh in batch mode, so use an ssh agent or
+  `ControlMaster` when your key needs a passphrase.
 
 The built-in terminal talks to the daemon directly. The full-screen shell,
 building images and the build history require the `docker` CLI (with
@@ -88,9 +91,9 @@ buildx) to be installed.
 
 | Key               | Action                                   |
 | ----------------- | ---------------------------------------- |
-| `tab` / `shift+tab`, `1`–`7` | Switch between tabs           |
+| `tab` / `shift+tab`, `←`/`h`, `→`/`l`, `1`–`7` | Switch between tabs |
 | `↑`/`k`, `↓`/`j`  | Move the cursor                          |
-| `pgup`, `pgdn`, `g`, `G` | Page up/down, jump to top/bottom  |
+| `pgup`/`ctrl+b`, `pgdn`/`ctrl+f`, `g`/`home`, `G`/`end` | Page up/down, jump to top/bottom |
 | `/`               | Filter the list (`enter` keeps, `esc` clears) |
 | `space` | Mark/unmark the current row or highlighted range; keep the cursor in place |
 | `shift+↑/↓` | Extend or shrink a highlighted range; `space` marks it |
@@ -98,8 +101,8 @@ buildx) to be installed.
 | `C`               | Mark all containers of the selected compose project |
 | `c`               | Fold or unfold the selected compose project |
 | `o` / `O`         | Cycle sort column / reverse sort order   |
-| `r`               | Refresh                                  |
-| `enter`           | Show logs of the selected or marked containers |
+| `r` / `ctrl+r`    | Refresh                                  |
+| `enter` / `L`     | Show logs of the selected or marked containers |
 | `t`               | Show live stats of the selected container |
 | `T`               | List the processes of the selected container |
 | `e`               | Open a terminal in the selected container (`ctrl+p ctrl+q` or `ctrl+]` leaves) |
@@ -120,7 +123,7 @@ buildx) to be installed.
 | `K`               | Kill a running container                 |
 | `p`               | Pause or unpause a container             |
 | `a`               | Toggle showing stopped containers        |
-| `d`               | Remove the selected object               |
+| `d` / `delete`    | Remove the selected object               |
 | `P`               | Prune unused objects of the current tab  |
 | `/`, `n` / `N`    | In logs: search, next / previous match   |
 | `t`               | In container logs: toggle timestamps     |

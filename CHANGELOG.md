@@ -5,6 +5,29 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Colored container output and search highlights no longer cut log rows too
+  early or leave colors bleeding into the next column.
+- Logs of several containers attribute each line to its container and parse
+  its timestamp on color terminals, where the container prefix is colored.
+- Log, build and Compose views rebuild their rows when the terminal is
+  resized instead of waiting for the next key press.
+- Panes and the lists get the height left by their own help line, so the
+  header stays visible with full help open or after switching tabs.
+- A list refresh that finishes after a newer one no longer replaces the newer
+  list, for example when toggling stopped containers during a refresh.
+- The stopped-container visibility and the build count of a prune are read
+  in the update loop rather than from the command's goroutine.
+- A terminal session that connects after its pane was replaced is closed
+  instead of leaking the exec or attach connection.
+- Over ssh://, connections made after the first run ssh in batch mode so a
+  reconnection never prompts on the terminal the interface owns.
+- A multiplexed stream whose system frame announces gigabytes no longer
+  allocates them; the message is read up to 64 KiB.
+- A build context named like a flag, "-" included, is passed to the CLI as a
+  path.
+
 ### Changed
 
 - Space marks or unmarks rows without moving the cursor.

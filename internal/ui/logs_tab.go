@@ -175,6 +175,7 @@ func (a *App) openSelectedLog() tea.Cmd {
 			return cli.Logs(ctx, id)
 		}}}
 		a.pane = l
+		a.layout()
 		return l.start()
 	}
 
@@ -183,5 +184,6 @@ func (a *App) openSelectedLog() tea.Cmd {
 	l.timestamps = true
 	l.client, l.sources = a.client, sources
 	a.pane = l
+	a.layout()
 	return l.start()
 }

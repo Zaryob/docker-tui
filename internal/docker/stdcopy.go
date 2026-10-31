@@ -21,6 +21,9 @@ const (
 
 const stdHeaderLen = 8
 
+// stdSystemMax bounds the size of a system message read from a stream.
+const stdSystemMax = 64 * 1024
+
 // Demux splits a multiplexed stream, as returned by the logs and attach
 // endpoints for containers without a TTY, into stdout and stderr.
 //
@@ -44,7 +47,10 @@ func Demux(r io.Reader, stdout, stderr io.Writer) error {
 		case StreamStderr:
 			w = stderr
 		case StreamSystem:
-			msg := make([]byte, size)
+			// The daemon sends short messages; bound the read so a
+			// corrupt or hostile header cannot allocate gigabytes.
+			n := min(size, stdSystemMax)
+			msg := make([]byte, n)
 			if _, err := io.ReadFull(r, msg); err != nil {
 				return err
 			}

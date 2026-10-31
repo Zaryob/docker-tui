@@ -270,3 +270,23 @@ func TestDefaultPorts(t *testing.T) {
 		t.Errorf("TLS base = %q", c.base)
 	}
 }
+
+func TestSSHBatchModeAfterFirstDial(t *testing.T) {
+	sock := unixServer(t, versionHandler(t))
+	args := fakeSSH(t, sock, "")
+	c, err := NewClient("ssh://me@box")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, wantBatch := range []bool{false, true} {
+		conn, err := c.dial(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		conn.Close()
+		got := strings.Join(*args, " ")
+		if strings.Contains(got, "BatchMode=yes") != wantBatch {
+			t.Errorf("dial %d: ssh args = %q, want BatchMode=yes: %v", i+1, got, wantBatch)
+		}
+	}
+}

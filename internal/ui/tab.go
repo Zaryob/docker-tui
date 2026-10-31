@@ -70,6 +70,8 @@ type listMsg struct {
 	// partial allows usable results to replace the list while reporting
 	// failures from other sources, e.g. a combined log snapshot.
 	partial bool
+	// seq orders the loads of a tab; zero means unordered. See App.load.
+	seq int
 }
 
 // tab holds the state of one resource list (containers, images, ...).
@@ -86,6 +88,10 @@ type tab struct {
 	sortDesc bool
 	loaded   bool
 	loadErr  error
+	// loadSeq numbers the loads issued for the tab and appliedSeq is the
+	// number of the list shown; see App.load.
+	loadSeq    int
+	appliedSeq int
 	// marked holds the IDs of the objects marked for a bulk action.
 	marked map[string]bool
 	// highlighted is a temporary range of row IDs, separate from action marks.
