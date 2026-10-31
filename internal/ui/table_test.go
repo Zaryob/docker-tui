@@ -105,3 +105,23 @@ func TestEmptyTableView(t *testing.T) {
 		t.Errorf("empty table renders %d lines, want 3", got)
 	}
 }
+
+func TestTableRangeGutterDistinguishesHighlightsFromMarks(t *testing.T) {
+	tb := NewTable(Column{Title: "ID", Width: 4}, Column{Title: "NAME"})
+	tb.SetSize(24, 4)
+	tb.SetRows(makeRows(3))
+	tb.SetCursor(2)
+	tb.SetMarks([]bool{true, false, false})
+	tb.SetHighlights([]bool{true, true, false})
+	lines := strings.Split(ansi.Strip(tb.View()), "\n")
+	for i, prefix := range []string{"    ID", "› ✓ id0", "›   id1", "    id2"} {
+		if !strings.HasPrefix(lines[i], prefix) || ansi.StringWidth(lines[i]) != 24 {
+			t.Fatalf("row %d = %q", i, lines[i])
+		}
+	}
+	tb.SetHighlights(nil)
+	lines = strings.Split(ansi.Strip(tb.View()), "\n")
+	if !strings.HasPrefix(lines[1], "✓ id0") || strings.Contains(strings.Join(lines, "\n"), "›") {
+		t.Fatal("clearing range lost marks or retained range indicators")
+	}
+}

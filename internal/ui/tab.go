@@ -88,6 +88,10 @@ type tab struct {
 	loadErr  error
 	// marked holds the IDs of the objects marked for a bulk action.
 	marked map[string]bool
+	// highlighted is a temporary range of row IDs, separate from action marks.
+	// Identities keep daemon refreshes from highlighting replacement objects.
+	highlighted map[string]bool
+	rangeAnchor string
 	// visible holds the objects matching the filter, in display order and
 	// including the members of collapsed groups.
 	visible []item
@@ -120,28 +124,91 @@ func (t *tab) setItems(items []item) {
 
 // toggleMark marks or unmarks the selected object.
 func (t *tab) toggleMark() {
+	var rows []item
+	if len(t.highlighted) > 0 {
+		for _, it := range t.items {
+			if t.highlighted[it.id] {
+				rows = append(rows, it)
+			}
+		}
+	} else if it, ok := t.selected(); ok {
+		rows = []item{it}
+	}
+	// A range can contain both a project row and its children. Deduplicate
+	// objects so every checkbox is changed exactly once.
+	var targets []item
+	seen := make(map[string]bool)
+	for _, row := range rows {
+		members := []item{row}
+		if row.isGroup() {
+			members = row.members
+		}
+		for _, it := range members {
+			if !seen[it.id] {
+				targets = append(targets, it)
+				seen[it.id] = true
+			}
+		}
+	}
+	if len(targets) == 0 {
+		return
+	}
+	unmark := allMarked(targets, t.marked)
+	for _, it := range targets {
+		if unmark {
+			delete(t.marked, it.id)
+		} else {
+			t.marked[it.id] = true
+		}
+	}
+	t.refresh()
+}
+
+// extendRange moves the cursor while growing or shrinking a temporary range.
+func (t *tab) extendRange(delta int) {
 	it, ok := t.selected()
 	if !ok {
 		return
 	}
-	switch {
-	case it.isGroup():
-		// Marking a group marks all its members, or unmarks them if they
-		// are all marked already.
-		all := allMarked(it.members, t.marked)
-		for _, m := range it.members {
-			if all {
-				delete(t.marked, m.id)
-			} else {
-				t.marked[m.id] = true
-			}
-		}
-	case t.marked[it.id]:
-		delete(t.marked, it.id)
-	default:
-		t.marked[it.id] = true
+	if t.rangeAnchor == "" {
+		t.rangeAnchor = it.id
 	}
-	t.refresh()
+	anchor := -1
+	for i, row := range t.items {
+		if row.id == t.rangeAnchor {
+			anchor = i
+			break
+		}
+	}
+	if anchor < 0 {
+		t.clearRange()
+		return
+	}
+	t.table.Move(delta)
+	lo, hi := min(anchor, t.table.Cursor()), max(anchor, t.table.Cursor())
+	t.highlighted = make(map[string]bool, hi-lo+1)
+	for _, row := range t.items[lo : hi+1] {
+		t.highlighted[row.id] = true
+	}
+	t.syncHighlights()
+}
+
+func (t *tab) clearRange() {
+	t.rangeAnchor = ""
+	t.highlighted = nil
+	t.table.SetHighlights(nil)
+}
+
+func (t *tab) syncHighlights() {
+	if len(t.highlighted) == 0 {
+		t.table.SetHighlights(nil)
+		return
+	}
+	rows := make([]bool, len(t.items))
+	for i, it := range t.items {
+		rows[i] = t.highlighted[it.id]
+	}
+	t.table.SetHighlights(rows)
 }
 
 func allMarked(items []item, marked map[string]bool) bool {
@@ -156,6 +223,7 @@ func allMarked(items []item, marked map[string]bool) bool {
 // toggleCollapse collapses or expands the group under the cursor, or the
 // group of the selected object, which then moves the cursor to the group.
 func (t *tab) toggleCollapse() {
+	t.clearRange()
 	if t.group == nil {
 		return
 	}
@@ -232,6 +300,7 @@ func (t *tab) markedItems() []item {
 
 // setFilter changes the filter and updates the visible rows.
 func (t *tab) setFilter(filter string) {
+	t.clearRange()
 	t.filter = filter
 	t.refresh()
 }
@@ -239,6 +308,7 @@ func (t *tab) setFilter(filter string) {
 // cycleSort sorts by the next column, toggling the direction once every
 // column has been used ascending, and finally returns to the default order.
 func (t *tab) cycleSort() {
+	t.clearRange()
 	n := len(t.table.columns)
 	switch {
 	case t.sortCol < 0:
@@ -256,6 +326,7 @@ func (t *tab) cycleSort() {
 
 // reverseSort flips the sort direction of the current sort column.
 func (t *tab) reverseSort() {
+	t.clearRange()
 	if t.sortCol < 0 {
 		t.sortCol = 0
 	}
@@ -318,14 +389,32 @@ func (t *tab) refresh() {
 	}
 	t.table.SetRows(rows)
 	t.table.SetMarks(marks)
+	foundPrev := !hadPrev
 	if hadPrev {
 		for i, it := range items {
 			if it.id == prev.id {
 				t.table.SetCursor(i)
+				foundPrev = true
 				break
 			}
 		}
 	}
+	if len(t.highlighted) > 0 {
+		present := make(map[string]bool, len(items))
+		for _, it := range items {
+			present[it.id] = true
+		}
+		if !foundPrev || !present[t.rangeAnchor] {
+			t.clearRange()
+		} else {
+			for id := range t.highlighted {
+				if !present[id] {
+					delete(t.highlighted, id)
+				}
+			}
+		}
+	}
+	t.syncHighlights()
 }
 
 // groupIDPrefix starts the IDs of group rows, keeping them apart from the

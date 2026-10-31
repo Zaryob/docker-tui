@@ -380,6 +380,7 @@ func (a *App) switchTab(i int) tea.Cmd {
 	if i < 0 || i >= len(a.tabs) || i == a.active {
 		return nil
 	}
+	a.current().clearRange()
 	a.active = i
 	if !a.current().loaded {
 		return a.load(a.current().kind)
@@ -644,17 +645,26 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	}
 
 	t := a.current()
+	if key.Matches(msg, keys.Up, keys.Down, keys.PageUp, keys.PageDown, keys.Top, keys.Bottom) {
+		t.clearRange()
+	}
 	switch {
+	case key.Matches(msg, keys.ClearFilter) && len(t.highlighted) > 0:
+		t.clearRange()
+	case key.Matches(msg, keys.RangeUp):
+		t.extendRange(-1)
+	case key.Matches(msg, keys.RangeDown):
+		t.extendRange(1)
 	case key.Matches(msg, keys.ClearFilter) && t.filter != "":
 		t.setFilter("")
 	case key.Matches(msg, keys.ClearFilter) && len(t.marked) > 0:
 		t.clearMarks()
 	case key.Matches(msg, keys.Mark):
 		t.toggleMark()
-		t.table.Move(1)
 	case key.Matches(msg, keys.MarkAll):
 		t.markAll()
 	case key.Matches(msg, keys.Filter):
+		t.clearRange()
 		a.filtering = true
 		a.filter.SetValue(t.filter)
 		a.filter.CursorEnd()
@@ -902,6 +912,9 @@ func (a *App) statusLine() string {
 		}
 		if n := len(t.marked); n > 0 {
 			text += fmt.Sprintf(" · %d marked", n)
+		}
+		if n := len(t.highlighted); n > 0 {
+			text += fmt.Sprintf(" · %d highlighted · space: mark/unmark", n)
 		}
 		return prefix + statusStyle.Render(text)
 	}

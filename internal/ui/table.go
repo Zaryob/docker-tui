@@ -4,6 +4,7 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -15,6 +16,7 @@ const columnGap = 2
 
 var (
 	tableHeaderStyle = lipgloss.NewStyle().Bold(true).Foreground(colorAccent)
+	rangeRowStyle    = lipgloss.NewStyle().Background(lipgloss.AdaptiveColor{Light: "#EAF2FA", Dark: "#152A40"})
 	selectedRowStyle = lipgloss.NewStyle().Background(colorSelBg).Bold(true)
 	markStyle        = lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
 )
@@ -24,6 +26,7 @@ var (
 const (
 	markGutter   = "✓ "
 	markGutterSp = "  "
+	rangeGutter  = "› "
 )
 
 // Column describes a table column. A Width of zero makes the column flexible:
@@ -54,6 +57,8 @@ type Table struct {
 	sortDesc bool
 	// marks flags the rows marked for a bulk action.
 	marks []bool
+	// highlights flags temporary range selection before objects are marked.
+	highlights []bool
 	// cellStyle, when set, returns the style for a cell of an unselected row.
 	cellStyle cellStyler
 }
@@ -83,6 +88,13 @@ func (t *Table) SetCellStyle(fn cellStyler) {
 // SetMarks flags rows as marked; marks[i] applies to row i.
 func (t *Table) SetMarks(marks []bool) {
 	t.marks = marks
+}
+
+// SetHighlights flags the rows in a temporary range, independently of marks.
+func (t *Table) SetHighlights(rows []bool) { t.highlights = rows }
+
+func (t *Table) highlighted(row int) bool {
+	return row < len(t.highlights) && t.highlights[row]
 }
 
 // hasMarks reports whether any row is marked.
@@ -226,21 +238,32 @@ func (t *Table) fit(line string) string {
 func (t *Table) View() string {
 	// While rows are marked, a gutter in front of the rows shows which.
 	gutter := t.hasMarks()
+	ranges := slices.Contains(t.highlights, true)
 	total := t.width
+	if ranges {
+		total -= runewidth.StringWidth(markGutterSp)
+	}
 	if gutter {
 		total -= runewidth.StringWidth(markGutterSp)
 	}
 	widths := t.widths(total)
 	prefix := func(row int, styled bool) string {
+		rangePrefix := ""
+		if ranges {
+			rangePrefix = markGutterSp
+			if row >= 0 && t.highlighted(row) {
+				rangePrefix = rangeGutter
+			}
+		}
 		switch {
 		case !gutter:
-			return ""
+			return rangePrefix
 		case row >= 0 && t.marked(row) && styled:
-			return markStyle.Render(markGutter)
+			return rangePrefix + markStyle.Render(markGutter)
 		case row >= 0 && t.marked(row):
-			return markGutter
+			return rangePrefix + markGutter
 		}
-		return markGutterSp
+		return rangePrefix + markGutterSp
 	}
 	titles := make([]string, len(t.columns))
 	for i, c := range t.columns {
@@ -263,11 +286,14 @@ func (t *Table) View() string {
 	}
 	for i := t.offset; i < end; i++ {
 		var line string
-		if i == t.cursor {
+		switch {
+		case i == t.cursor:
 			// Cell styles would reset the selection background, so the
 			// selected row is rendered plain.
 			line = selectedRowStyle.Render(t.fit(prefix(i, false) + renderCells(t.rows[i], widths, nil)))
-		} else {
+		case t.highlighted(i):
+			line = rangeRowStyle.Render(t.fit(prefix(i, false) + renderCells(t.rows[i], widths, nil)))
+		default:
 			line = t.fit(prefix(i, true) + renderCells(t.rows[i], widths, t.cellStyle))
 		}
 		lines = append(lines, line)

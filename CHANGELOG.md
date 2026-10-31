@@ -3,6 +3,16 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+
+- Space marks or unmarks rows without moving the cursor.
+- Shift+Up/Down highlights a temporary range; Space marks or unmarks the range.
+  Normal navigation or Escape clears highlights while preserving action marks.
+- Range highlights follow row identities across daemon refreshes and never
+  transfer silently to replacement objects.
+
 ## [0.9.0] - 2026-10-31
 
 ### Added

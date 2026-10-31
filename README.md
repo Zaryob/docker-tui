@@ -92,7 +92,9 @@ buildx) to be installed.
 | `↑`/`k`, `↓`/`j`  | Move the cursor                          |
 | `pgup`, `pgdn`, `g`, `G` | Page up/down, jump to top/bottom  |
 | `/`               | Filter the list (`enter` keeps, `esc` clears) |
-| `space` / `ctrl+a` | Mark the selected / all visible objects (`esc` clears) |
+| `space` | Mark/unmark the current row or highlighted range; keep the cursor in place |
+| `shift+↑/↓` | Extend or shrink a highlighted range; `space` marks it |
+| `ctrl+a` | Mark/unmark all visible objects |
 | `C`               | Mark all containers of the selected compose project |
 | `c`               | Fold or unfold the selected compose project |
 | `o` / `O`         | Cycle sort column / reverse sort order   |
@@ -125,6 +127,12 @@ buildx) to be installed.
 | `esc`             | Close logs, stats or inspect             |
 | `?`               | Toggle full help                         |
 | `q`               | Quit                                     |
+
+In resource lists, normal navigation clears the temporary highlighted range.
+Escape clears the range first, keeping any marked objects. Highlighting alone
+does not mark objects or make them targets of a bulk action. Space marks all
+objects in a mixed range, or unmarks the range when all are already marked.
+Compose project rows include their members, including folded ones.
 
 Actions such as start, stop, restart, kill, pause and remove apply to all
 marked objects, or to the selected one when nothing is marked.

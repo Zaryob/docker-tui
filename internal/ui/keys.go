@@ -20,6 +20,8 @@ type keyMap struct {
 	Sort        key.Binding
 	ReverseSort key.Binding
 	ClearFilter key.Binding
+	RangeUp     key.Binding
+	RangeDown   key.Binding
 	Mark        key.Binding
 	MarkAll     key.Binding
 	MarkProject key.Binding
@@ -64,7 +66,9 @@ var keys = keyMap{
 	Filter:      key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")),
 	Sort:        key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "sort")),
 	ReverseSort: key.NewBinding(key.WithKeys("O"), key.WithHelp("O", "reverse sort")),
-	ClearFilter: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "clear filter")),
+	ClearFilter: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "clear range/filter/marks")),
+	RangeUp:     key.NewBinding(key.WithKeys("shift+up"), key.WithHelp("shift+↑", "extend range up")),
+	RangeDown:   key.NewBinding(key.WithKeys("shift+down"), key.WithHelp("shift+↓", "extend range down")),
 	Mark:        key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "mark")),
 	MarkAll:     key.NewBinding(key.WithKeys("ctrl+a"), key.WithHelp("ctrl+a", "mark all")),
 	MarkProject: key.NewBinding(key.WithKeys("C"), key.WithHelp("C", "mark project")),
@@ -103,7 +107,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 // FullHelp implements help.KeyMap.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Up, k.Down, k.PageUp, k.PageDown, k.Top, k.Bottom},
+		{k.Up, k.Down, k.PageUp, k.PageDown, k.Top, k.Bottom, k.RangeUp, k.RangeDown},
 		{k.ToggleAll, k.Logs, k.Inspect, k.Stats, k.Processes, k.Exec, k.Attach, k.ExecCLI, k.Build, k.Pull, k.Login, k.Logout, k.Copy, k.Start, k.Stop, k.Restart, k.Kill, k.Pause, k.Remove, k.Prune},
 		{k.NextTab, k.PrevTab, k.JumpTab},
 		{k.Mark, k.MarkAll, k.MarkProject, k.Collapse, k.Filter, k.ClearFilter, k.Sort, k.ReverseSort, k.CopyID, k.Refresh, k.Help, k.Quit},
