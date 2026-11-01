@@ -799,13 +799,7 @@ func (a *App) helpKeys() help.KeyMap {
 		}
 		return paneKeyMap{}
 	}
-	if a.current().kind == tabImages {
-		return imageKeyMap{keys}
-	}
-	if a.current().kind == tabProjects {
-		return projectKeyMap{}
-	}
-	return keys
+	return tabKeyMap{a.current().kind}
 }
 
 // bodyHeight returns the height available between the header and the

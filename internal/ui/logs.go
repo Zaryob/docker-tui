@@ -137,6 +137,8 @@ func parseLogLine(raw, defaultObj string, isBuild bool, defaultTime time.Time, c
 
 // logView streams the output of one or more containers in a structured table.
 type logView struct {
+	// colors assigns each object name the index of its prefix color.
+	colors  map[string]int
 	gen     int
 	name    string
 	sources []logSource
@@ -363,12 +365,31 @@ func cleanLogLine(s string) string {
 
 func (l *logView) capturesInput() bool { return l.searching || l.inspecting }
 
+func (l *logView) isBuild() bool {
+	return l.kind == "Build" || l.kind == "Build logs" || strings.Contains(l.name, "build")
+}
+
+// parse structures a line and colors its object consistently: every line
+// of the same container gets the color of its first appearance.
+func (l *logView) parse(line string) logEntry {
+	entry := parseLogLine(line, l.name, l.isBuild(), time.Now(), 0)
+	if l.colors == nil {
+		l.colors = map[string]int{}
+	}
+	idx, ok := l.colors[entry.object]
+	if !ok {
+		idx = len(l.colors)
+		l.colors[entry.object] = idx
+	}
+	entry.color = logPrefixColors[idx%len(logPrefixColors)]
+	return entry
+}
+
 func (l *logView) ensureEntries() {
 	if len(l.entries) != len(l.lines) {
 		l.entries = make([]logEntry, len(l.lines))
-		isBuild := l.kind == "Build" || l.kind == "Build logs" || strings.Contains(l.name, "build")
 		for i, line := range l.lines {
-			l.entries[i] = parseLogLine(line, l.name, isBuild, time.Now(), i)
+			l.entries[i] = l.parse(line)
 		}
 	}
 }
@@ -621,10 +642,8 @@ func (l *logView) update(msg tea.Msg) tea.Cmd {
 		if len(msg.lines) > 0 {
 			l.ensureEntries()
 			atBottom := l.vp.AtBottom() || len(l.lines) == 0
-			isBuild := l.kind == "Build" || l.kind == "Build logs" || strings.Contains(l.name, "build")
 			for _, line := range msg.lines {
-				entry := parseLogLine(line, l.name, isBuild, time.Now(), len(l.entries))
-				l.entries = append(l.entries, entry)
+				l.entries = append(l.entries, l.parse(line))
 			}
 			l.lines = append(l.lines, msg.lines...)
 			dropped := 0

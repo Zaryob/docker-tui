@@ -242,18 +242,3 @@ func (composeFormKeys) ShortHelp() []key.Binding {
 	}
 }
 func (k composeFormKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
-
-type projectKeyMap struct{}
-
-func (projectKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{
-		keys.NextTab, keys.Filter,
-		key.NewBinding(key.WithKeys("u"), key.WithHelp("u/enter", "up / show progress")),
-		key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "down")),
-		key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "rebuild")),
-		key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "open Compose file")), keys.Refresh, keys.Help, keys.Quit,
-	}
-}
-func (k projectKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{k.ShortHelp(), {keys.Up, keys.Down, keys.Sort, keys.ReverseSort, keys.ClearFilter}}
-}

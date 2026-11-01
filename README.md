@@ -5,6 +5,8 @@ A fast, keyboard-driven terminal user interface for Docker, written in Go.
 docker-tui talks to the Docker Engine API directly over its socket, so it is a
 single static binary with no dependency on the Docker SDK.
 
+![Containers grouped by Compose project, with live CPU and memory](docs/screenshots/containers.png)
+
 ## Features
 
 - Browse **containers**, **images**, **volumes**, **networks**, **builds**,
@@ -35,6 +37,26 @@ single static binary with no dependency on the Docker SDK.
 - Lists update instantly on daemon events, plus a periodic refresh
 - Works with local sockets, Docker Desktop, Colima, rootless Docker and
   remote daemons over TCP
+
+## Screenshots
+
+Logs of several containers in one view, each line attributed and colored by
+its container, with regex search and highlighted matches:
+
+![Combined logs of two containers with a search](docs/screenshots/logs.png)
+
+Live stats of a container, with a CPU history sparkline:
+
+![Stats pane with CPU, memory, network and block I/O](docs/screenshots/stats.png)
+
+Images, with pull, build and registry login at hand:
+
+![Images tab](docs/screenshots/images.png)
+
+Build history with steps, cache hits and durations, like the Builds view of
+Docker Desktop:
+
+![Builds tab](docs/screenshots/builds.png)
 
 ## Installation
 
@@ -173,6 +195,10 @@ go test -p 1 -race -count=1 -tags integration ./...    # run real-daemon integra
 make vet
 make run
 ```
+
+The screenshots in this README are rendered from fixtures by
+`TestScreenshots`; `sh docs/screenshots/render.sh` regenerates them with
+[freeze](https://github.com/charmbracelet/freeze).
 
 Integration tests skip an unavailable daemon locally. CI sets
 `DOCKER_TUI_INTEGRATION_REQUIRED=1` so missing prerequisites fail the run.

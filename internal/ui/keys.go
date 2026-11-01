@@ -87,8 +87,8 @@ var keys = keyMap{
 	Stats:       key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "stats")),
 	Processes:   key.NewBinding(key.WithKeys("T"), key.WithHelp("T", "processes")),
 	Build:       key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "build image")),
-	Login:       key.NewBinding(key.WithKeys("ctrl+l"), key.WithHelp("ctrl+l", "registry login (Images)")),
-	Logout:      key.NewBinding(key.WithKeys("ctrl+o"), key.WithHelp("ctrl+o", "registry logout (Images)")),
+	Login:       key.NewBinding(key.WithKeys("ctrl+l"), key.WithHelp("ctrl+l", "registry login")),
+	Logout:      key.NewBinding(key.WithKeys("ctrl+o"), key.WithHelp("ctrl+o", "registry logout")),
 	Pull:        key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "pull image")),
 	Copy:        key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "copy files")),
 	Exec:        key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "terminal")),
@@ -99,18 +99,83 @@ var keys = keyMap{
 	Quit:        key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
 }
 
-// ShortHelp implements help.KeyMap.
-func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.NextTab, k.Filter, k.Logs, k.Inspect, k.Start, k.Stop, k.Restart, k.Remove, k.Help, k.Quit}
+// Bindings whose meaning depends on the tab they are shown in.
+var (
+	buildLogsKey    = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "build logs"))
+	openLogKey      = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open log"))
+	pruneImagesKey  = key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "prune dangling"))
+	pruneBuildsKey  = key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "clear history"))
+	projectUpKey    = key.NewBinding(key.WithKeys("u"), key.WithHelp("u/enter", "up / progress"))
+	pullShortKey    = key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "pull"))
+	buildShortKey   = key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "build"))
+	loginShortKey   = key.NewBinding(key.WithKeys("ctrl+l"), key.WithHelp("ctrl+l", "login"))
+	logoutShortKey  = key.NewBinding(key.WithKeys("ctrl+o"), key.WithHelp("ctrl+o", "logout"))
+	projectDownKey  = key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "down"))
+	projectBuildKey = key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "rebuild"))
+	projectFileKey  = key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "open Compose file"))
+)
+
+// tabKeyMap is the help of a resource list: the actions that apply to the
+// objects of the tab, so that e.g. the log list does not offer "remove".
+type tabKeyMap struct{ kind tabKind }
+
+// actions returns the bindings specific to the tab, in order of use.
+func (k tabKeyMap) actions() []key.Binding {
+	switch k.kind {
+	case tabContainers:
+		return []key.Binding{keys.Logs, keys.Inspect, keys.Stats, keys.Processes, keys.Exec, keys.Attach, keys.ExecCLI, keys.Copy,
+			keys.Start, keys.Stop, keys.Restart, keys.Kill, keys.Pause, keys.Remove, keys.Prune, keys.ToggleAll}
+	case tabImages:
+		return []key.Binding{keys.Pull, keys.Build, keys.Login, keys.Logout, keys.Inspect, keys.Remove, pruneImagesKey}
+	case tabVolumes, tabNetworks:
+		return []key.Binding{keys.Inspect, keys.Remove, keys.Prune}
+	case tabBuilds:
+		return []key.Binding{buildLogsKey, keys.Build, keys.Inspect, keys.Remove, pruneBuildsKey}
+	case tabLogs:
+		return []key.Binding{openLogKey}
+	case tabProjects:
+		return []key.Binding{projectUpKey, projectDownKey, projectBuildKey, projectFileKey}
+	}
+	return nil
 }
 
-// FullHelp implements help.KeyMap.
-func (k keyMap) FullHelp() [][]key.Binding {
+// ShortHelp implements help.KeyMap with the most used actions of the tab.
+func (k tabKeyMap) ShortHelp() []key.Binding {
+	b := []key.Binding{keys.NextTab, keys.Filter}
+	switch k.kind {
+	case tabContainers:
+		b = append(b, keys.Logs, keys.Inspect, keys.Stats, keys.Exec, keys.Start, keys.Stop, keys.Remove)
+	case tabImages:
+		b = append(b, pullShortKey, buildShortKey, loginShortKey, logoutShortKey, keys.Inspect, keys.Remove)
+	case tabVolumes, tabNetworks:
+		b = append(b, keys.Inspect, keys.Remove, keys.Prune, keys.CopyID, keys.Sort)
+	case tabBuilds:
+		b = append(b, buildLogsKey, keys.Build, keys.Inspect, keys.Remove, pruneBuildsKey)
+	case tabLogs:
+		b = append(b, openLogKey, keys.Mark, keys.Sort, keys.Refresh)
+	case tabProjects:
+		b = append(b, projectUpKey, projectDownKey, projectBuildKey, projectFileKey, keys.Refresh)
+	}
+	return append(b, keys.Help, keys.Quit)
+}
+
+// FullHelp implements help.KeyMap: navigation, the actions of the tab,
+// tabs, and the list commands that apply to the tab.
+func (k tabKeyMap) FullHelp() [][]key.Binding {
+	list := []key.Binding{keys.Mark, keys.MarkAll}
+	if k.kind == tabContainers {
+		list = append(list, keys.MarkProject, keys.Collapse)
+	}
+	list = append(list, keys.Filter, keys.ClearFilter, keys.Sort, keys.ReverseSort)
+	if k.kind != tabLogs && k.kind != tabProjects {
+		list = append(list, keys.CopyID)
+	}
+	list = append(list, keys.Refresh, keys.Help, keys.Quit)
 	return [][]key.Binding{
-		{k.Up, k.Down, k.PageUp, k.PageDown, k.Top, k.Bottom, k.RangeUp, k.RangeDown},
-		{k.ToggleAll, k.Logs, k.Inspect, k.Stats, k.Processes, k.Exec, k.Attach, k.ExecCLI, k.Build, k.Pull, k.Login, k.Logout, k.Copy, k.Start, k.Stop, k.Restart, k.Kill, k.Pause, k.Remove, k.Prune},
-		{k.NextTab, k.PrevTab, k.JumpTab},
-		{k.Mark, k.MarkAll, k.MarkProject, k.Collapse, k.Filter, k.ClearFilter, k.Sort, k.ReverseSort, k.CopyID, k.Refresh, k.Help, k.Quit},
+		{keys.Up, keys.Down, keys.PageUp, keys.PageDown, keys.Top, keys.Bottom, keys.RangeUp, keys.RangeDown},
+		k.actions(),
+		{keys.NextTab, keys.PrevTab, keys.JumpTab},
+		list,
 	}
 }
 

@@ -168,10 +168,3 @@ func (k registryFormKeys) ShortHelp() []key.Binding {
 	return []key.Binding{formNextKey, key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", action)), formCancelKey}
 }
 func (k registryFormKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
-
-// imageKeyMap exposes registry actions where they are available.
-type imageKeyMap struct{ keyMap }
-
-func (k imageKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.NextTab, k.Filter, k.Pull, k.Build, k.Login, k.Logout, k.Inspect, k.Remove, k.Help, k.Quit}
-}

@@ -5,8 +5,18 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- README screenshots rendered from fixtures by `TestScreenshots` and
+  `docs/screenshots/render.sh`.
+
 ### Fixed
 
+- The footer shows the actions of the current tab: Logs no longer offers
+  remove or start, Builds says build logs and clear history, and the full
+  help is filtered the same way.
+- Each container keeps one color in combined logs instead of a color per
+  line.
 - Colored container output and search highlights no longer cut log rows too
   early or leave colors bleeding into the next column.
 - Logs of several containers attribute each line to its container and parse

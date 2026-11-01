@@ -162,3 +162,45 @@ func TestTerminalSessionClosedWhenPaneReplaced(t *testing.T) {
 		t.Errorf("read after the session was dropped = %v, want EOF", err)
 	}
 }
+
+func TestFooterShowsActionsOfTheTab(t *testing.T) {
+	a := newTestApp(t, http.NotFoundHandler())
+	helpText := func(kind tabKind) string {
+		a.active = int(kind)
+		return a.help.View(a.helpKeys())
+	}
+	if h := helpText(tabLogs); strings.Contains(h, "remove") || strings.Contains(h, "start") || !strings.Contains(h, "open log") {
+		t.Errorf("logs footer = %q", h)
+	}
+	if h := helpText(tabContainers); !strings.Contains(h, "remove") || !strings.Contains(h, "stop") {
+		t.Errorf("containers footer = %q", h)
+	}
+	if h := helpText(tabVolumes); strings.Contains(h, "logs") || strings.Contains(h, "stop") || !strings.Contains(h, "prune") {
+		t.Errorf("volumes footer = %q", h)
+	}
+	if h := helpText(tabBuilds); !strings.Contains(h, "build logs") || strings.Contains(h, "stop") {
+		t.Errorf("builds footer = %q", h)
+	}
+	a.help.ShowAll = true
+	if h := helpText(tabImages); !strings.Contains(h, "registry login") || strings.Contains(h, "stats") || strings.Contains(h, "fold project") {
+		t.Errorf("images full help = %q", h)
+	}
+	if h := helpText(tabLogs); strings.Contains(h, "copy ID") || !strings.Contains(h, "mark") {
+		t.Errorf("logs full help = %q", h)
+	}
+}
+
+func TestLogObjectColorsAreStable(t *testing.T) {
+	l := newLogView("2 containers", 80, 20)
+	l.lines = []string{"web | a", "db | b", "web | c", "db | d", "web | e"}
+	l.ensureEntries()
+	for i, e := range l.entries {
+		want := l.entries[i%2].color
+		if e.color != want {
+			t.Errorf("line %d (%s) color = %v, want the color of its container %v", i, e.object, e.color, want)
+		}
+	}
+	if l.entries[0].color == l.entries[1].color {
+		t.Error("different containers share a color")
+	}
+}
