@@ -50,3 +50,12 @@ are separate from the implementation work.
   failures explain how to log in and retry.
 - Gate: helper/config precedence, registry isolation, secret redaction, UI tests
   and an isolated real-registry login/pull/logout smoke test.
+
+## v0.10.0 — Tab-specific footers, range marking and log reliability (released)
+
+- Filter footer actions and full help to the active tab.
+- Add Shift+arrow temporary range selection and stationary Space marking.
+- Assign stable per-container colors in combined logs and fix color bleeding and clipping.
+- Rebuild log, build and Compose rows automatically on terminal resize.
+- Render reproducible README screenshots from test fixtures.
+- Gate: focused regressions, race tests, vet and build.
