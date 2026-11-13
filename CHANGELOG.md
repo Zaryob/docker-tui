@@ -7,6 +7,10 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Interactive file manager and tab completion in the Compose file open form (`f` on Projects tab):
+  - Lists directories and files with compose files (`compose.yaml`, `docker-compose.yml`) highlighted and pre-selected.
+  - Keyboard navigation (`↑/↓`, `Enter` to browse directories or select file, `..` for parent directory).
+  - Shell-style tab path autocompletion and `~` home directory expansion.
 - Advanced list filtering with multi-term conjunction (AND search), quoted phrases,
   negation (`!term` or `-term`), and field-specific predicates:
   - `status:<val>` / `state:<val>` for container/project/build status.

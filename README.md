@@ -169,10 +169,11 @@ space-separated terms (AND search), exact phrases in quotes, negation with `!` o
 `is:<running|stopped|healthy|unhealthy|dangling>`. Escape clears the active filter.
 
 The Projects tab (7) discovers projects on the selected daemon. Operations need
-Compose files on this machine; `f` opens a local file when daemon paths are
-unavailable. Escape keeps an operation running; `u` reopens its output and `x`
-cancels it. `down` preserves volumes and retains the project in the current
-session and across restarts so it can be started again. Compose requires the Docker CLI plugin.
+Compose files on this machine; `f` opens a local file with an integrated file browser
+and path autocompletion when daemon paths are unavailable. Escape keeps an operation
+running; `u` reopens its output and `x` cancels it. `down` preserves volumes and
+retains the project in the current session and across restarts so it can be started
+again. Compose requires the Docker CLI plugin.
 
 List filters, sorting and stopped-container visibility are saved automatically
 in `docker-tui/preferences.json` under the platform's user configuration
