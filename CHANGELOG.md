@@ -3,6 +3,17 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- Advanced list filtering with multi-term conjunction (AND search), quoted phrases,
+  negation (`!term` or `-term`), and field-specific predicates:
+  - `status:<val>` / `state:<val>` for container/project/build status.
+  - `label:<key>` / `label:<key>=<val>` matching object Docker labels.
+  - `name:<val>`, `id:<val>`, `image:<val>`, and `port:<val>`.
+  - `is:running`, `is:stopped`, `is:paused`, `is:healthy`, `is:unhealthy`, and `is:dangling`.
+
 ## [0.10.0] - 2026-11-14
 
 ### Added

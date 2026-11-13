@@ -341,30 +341,19 @@ func (t *tab) reverseSort() {
 	t.refresh()
 }
 
-// matches reports whether any cell of it contains the filter, ignoring case.
+// matches reports whether an item matches the filter query.
 func (it item) matches(filter string) bool {
-	if filter == "" {
-		return true
-	}
-	filter = strings.ToLower(filter)
-	if strings.Contains(strings.ToLower(it.name), filter) {
-		return true
-	}
-	for _, c := range it.cells {
-		if strings.Contains(strings.ToLower(c), filter) {
-			return true
-		}
-	}
-	return false
+	return parseFilter(filter).matches(it)
 }
 
 // refresh rebuilds the table rows from the items and the filter, trying to
 // keep the cursor on the previously selected object.
 func (t *tab) refresh() {
 	prev, hadPrev := t.selected()
+	q := parseFilter(t.filter)
 	items := make([]item, 0, len(t.all))
 	for _, it := range t.all {
-		if it.matches(t.filter) {
+		if q.matches(it) {
 			items = append(items, it)
 		}
 	}

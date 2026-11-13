@@ -162,6 +162,12 @@ Compose project rows include their members, including folded ones.
 Actions such as start, stop, restart, kill, pause and remove apply to all
 marked objects, or to the selected one when nothing is marked.
 
+Pressing `/` opens incremental filtering across any list. Queries support multiple
+space-separated terms (AND search), exact phrases in quotes, negation with `!` or `-`
+(e.g. `!exited`), and structured prefixes such as `status:<val>`, `state:<val>`,
+`label:<key>=<val>`, `name:<val>`, `id:<val>`, `image:<val>`, `port:<val>`, and
+`is:<running|stopped|healthy|unhealthy|dangling>`. Escape clears the active filter.
+
 The Projects tab (7) discovers projects on the selected daemon. Operations need
 Compose files on this machine; `f` opens a local file when daemon paths are
 unavailable. Escape keeps an operation running; `u` reopens its output and `x`

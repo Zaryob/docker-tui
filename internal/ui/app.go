@@ -87,7 +87,7 @@ type App struct {
 func New(client *docker.Client, opts Options) *App {
 	fi := textinput.New()
 	fi.Prompt = "/"
-	fi.Placeholder = "filter"
+	fi.Placeholder = "filter (e.g. web, status:running, label:env=prod, !exited)"
 	fi.PromptStyle = lipgloss.NewStyle().Foreground(colorAccent)
 	a := &App{
 		opts:   opts,
