@@ -59,3 +59,10 @@ are separate from the implementation work.
 - Rebuild log, build and Compose rows automatically on terminal resize.
 - Render reproducible README screenshots from test fixtures.
 - Gate: focused regressions, race tests, vet and build.
+
+## v0.11.0 — Advanced filtering and Compose file manager (released)
+
+- Support multi-term conjunction (AND search), quoted phrases, negation, and field-specific predicates (status, label, name, id, image, port, is:running/stopped/healthy/etc.) in list filtering.
+- Provide an interactive file browser and shell-style path completion with home directory expansion for opening Compose files.
+- Gate: filter parser tests, filebrowser tests, race tests, vet and build.
+
