@@ -438,16 +438,17 @@ func (f *composeForm) view() string {
 
 			icon := "📄 "
 			var nameStyled string
-			if e.isParent {
+			switch {
+			case e.isParent:
 				icon = "📁 "
 				nameStyled = dirStyle.Render(".. (parent directory)")
-			} else if e.isDir {
+			case e.isDir:
 				icon = "📁 "
 				nameStyled = dirStyle.Render(e.name + "/")
-			} else if e.isCompose {
+			case e.isCompose:
 				icon = "🐳 "
 				nameStyled = composeStyle.Render(e.name)
-			} else {
+			default:
 				nameStyled = fileStyle.Render(e.name)
 			}
 

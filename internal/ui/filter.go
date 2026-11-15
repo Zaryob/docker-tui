@@ -118,10 +118,12 @@ func parseToken(token string) *filterPredicate {
 		return nil
 	}
 
-	kind := filterText
-	val := token
-	key := ""
-	hasKey := false
+	var (
+		kind   filterKind
+		val    string
+		key    string
+		hasKey bool
+	)
 
 	if idx := strings.Index(token, ":"); idx > 0 {
 		prefix := strings.ToLower(token[:idx])

@@ -68,12 +68,13 @@ func readDirEntries(dir string) ([]fileEntry, error) {
 			continue
 		}
 
-		if e.IsDir() {
+		switch {
+		case e.IsDir():
 			dirs = append(dirs, fileEntry{
 				name:  name,
 				isDir: true,
 			})
-		} else if isComposeFile(name) {
+		case isComposeFile(name):
 			entry := fileEntry{
 				name:      name,
 				isDir:     false,
@@ -84,7 +85,7 @@ func readDirEntries(dir string) ([]fileEntry, error) {
 			} else {
 				otherCompose = append(otherCompose, entry)
 			}
-		} else {
+		default:
 			otherFiles = append(otherFiles, fileEntry{
 				name:  name,
 				isDir: false,

@@ -341,11 +341,6 @@ func (t *tab) reverseSort() {
 	t.refresh()
 }
 
-// matches reports whether an item matches the filter query.
-func (it item) matches(filter string) bool {
-	return parseFilter(filter).matches(it)
-}
-
 // refresh rebuilds the table rows from the items and the filter, trying to
 // keep the cursor on the previously selected object.
 func (t *tab) refresh() {
