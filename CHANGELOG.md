@@ -3,6 +3,18 @@
 All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- Tag local Docker images with custom repository:tag (`t` on Images tab).
+- Push Docker images to remote registries (`p` on Images tab) with real-time layer progress and authentication support.
+- Streamlined Compose lifecycle and log controls on Projects tab:
+  - `s` to start stopped project containers without recreating.
+  - `S` to stop running project containers without bringing down networks/volumes.
+  - `R` to restart project containers.
+  - `L` to stream and follow live Compose project logs (`compose logs -f`).
+
 ## [0.11.0] - 2026-11-15
 
 ### Added

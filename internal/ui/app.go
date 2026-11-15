@@ -42,6 +42,9 @@ type App struct {
 	// pull is the running image pull, which keeps running when its view
 	// is closed.
 	pull *pullView
+	// push is the running image push, which keeps running when its view
+	// is closed.
+	push *pushView
 	// build is the output of the running build, which keeps running when
 	// its view is closed.
 	compose  *logView
@@ -539,6 +542,23 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.layout()
 		}
 		return a, a.runCopy(msg)
+	case tagSubmitMsg:
+		if a.pane != nil {
+			a.pane.close()
+			a.pane = nil
+			a.layout()
+		}
+		a.busy++
+		return a, func() tea.Msg {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			err := a.client.TagImage(ctx, msg.imageID, msg.target)
+			return actionMsg{
+				kind:   tabImages,
+				status: "tagged image as " + msg.target,
+				err:    err,
+			}
+		}
 	case closePaneMsg:
 		if a.pane != nil {
 			a.pane.close()
@@ -579,6 +599,14 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd := a.pull.update(msg)
 			if a.pull.done {
 				return a, tea.Batch(cmd, a.pullFinished())
+			}
+			return a, cmd
+		}
+	case pushMsg:
+		if a.push != nil && msg.gen == a.push.gen {
+			cmd := a.push.update(msg)
+			if a.push.done {
+				return a, tea.Batch(cmd, a.pushFinished())
 			}
 			return a, cmd
 		}
@@ -648,6 +676,10 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 			a.pane = nil
 			a.layout()
 			return a.setStatus("pull continues in the background; u shows it again", false)
+		case key.Matches(msg, keys.Back) && a.push != nil && a.pane == pane(a.push) && a.push.running():
+			a.pane = nil
+			a.layout()
+			return a.setStatus("push continues in the background; p shows it again", false)
 		case key.Matches(msg, keys.Back) && a.pane == asPane(a.compose):
 			a.pane = nil
 			a.layout()
@@ -748,6 +780,12 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		}
 		if t.kind == tabImages && key.Matches(msg, keys.Pull) {
 			return a.showPull()
+		}
+		if t.kind == tabImages && key.Matches(msg, keys.Push) {
+			return a.showPush()
+		}
+		if t.kind == tabImages && key.Matches(msg, keys.Tag) {
+			return a.openTag()
 		}
 		if (t.kind == tabImages || t.kind == tabBuilds) && key.Matches(msg, keys.Build) {
 			return a.showBuild()
@@ -915,6 +953,9 @@ func (a *App) statusLine() string {
 	}
 	if pi := a.pullIndicator(); pi != "" {
 		prefix += pi + statusStyle.Render(" · ")
+	}
+	if psi := a.pushIndicator(); psi != "" {
+		prefix += psi + statusStyle.Render(" · ")
 	}
 	switch {
 	case a.status != "" && a.statusErr:

@@ -43,6 +43,8 @@ type keyMap struct {
 	ExecCLI     key.Binding
 	Attach      key.Binding
 	Build       key.Binding
+	Tag         key.Binding
+	Push        key.Binding
 	Login       key.Binding
 	Logout      key.Binding
 	Pull        key.Binding
@@ -87,6 +89,8 @@ var keys = keyMap{
 	Stats:       key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "stats")),
 	Processes:   key.NewBinding(key.WithKeys("T"), key.WithHelp("T", "processes")),
 	Build:       key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "build image")),
+	Tag:         key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "tag image")),
+	Push:        key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "push image")),
 	Login:       key.NewBinding(key.WithKeys("ctrl+l"), key.WithHelp("ctrl+l", "registry login")),
 	Logout:      key.NewBinding(key.WithKeys("ctrl+o"), key.WithHelp("ctrl+o", "registry logout")),
 	Pull:        key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "pull image")),
@@ -101,18 +105,22 @@ var keys = keyMap{
 
 // Bindings whose meaning depends on the tab they are shown in.
 var (
-	buildLogsKey    = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "build logs"))
-	openLogKey      = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open log"))
-	pruneImagesKey  = key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "prune dangling"))
-	pruneBuildsKey  = key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "clear history"))
-	projectUpKey    = key.NewBinding(key.WithKeys("u"), key.WithHelp("u/enter", "up / progress"))
-	pullShortKey    = key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "pull"))
-	buildShortKey   = key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "build"))
-	loginShortKey   = key.NewBinding(key.WithKeys("ctrl+l"), key.WithHelp("ctrl+l", "login"))
-	logoutShortKey  = key.NewBinding(key.WithKeys("ctrl+o"), key.WithHelp("ctrl+o", "logout"))
-	projectDownKey  = key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "down"))
-	projectBuildKey = key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "rebuild"))
-	projectFileKey  = key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "open Compose file"))
+	buildLogsKey      = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "build logs"))
+	openLogKey        = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open log"))
+	pruneImagesKey    = key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "prune dangling"))
+	pruneBuildsKey    = key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "clear history"))
+	projectUpKey      = key.NewBinding(key.WithKeys("u"), key.WithHelp("u/enter", "up / progress"))
+	pullShortKey      = key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "pull"))
+	buildShortKey     = key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "build"))
+	loginShortKey     = key.NewBinding(key.WithKeys("ctrl+l"), key.WithHelp("ctrl+l", "login"))
+	logoutShortKey    = key.NewBinding(key.WithKeys("ctrl+o"), key.WithHelp("ctrl+o", "logout"))
+	projectDownKey    = key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "down"))
+	projectStartKey   = key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start"))
+	projectStopKey    = key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "stop"))
+	projectRestartKey = key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "restart"))
+	projectLogsKey    = key.NewBinding(key.WithKeys("L"), key.WithHelp("L", "logs"))
+	projectBuildKey   = key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "rebuild"))
+	projectFileKey    = key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "open Compose file"))
 )
 
 // tabKeyMap is the help of a resource list: the actions that apply to the
@@ -126,7 +134,7 @@ func (k tabKeyMap) actions() []key.Binding {
 		return []key.Binding{keys.Logs, keys.Inspect, keys.Stats, keys.Processes, keys.Exec, keys.Attach, keys.ExecCLI, keys.Copy,
 			keys.Start, keys.Stop, keys.Restart, keys.Kill, keys.Pause, keys.Remove, keys.Prune, keys.ToggleAll}
 	case tabImages:
-		return []key.Binding{keys.Pull, keys.Build, keys.Login, keys.Logout, keys.Inspect, keys.Remove, pruneImagesKey}
+		return []key.Binding{keys.Pull, keys.Push, keys.Tag, keys.Build, keys.Login, keys.Logout, keys.Inspect, keys.Remove, pruneImagesKey}
 	case tabVolumes, tabNetworks:
 		return []key.Binding{keys.Inspect, keys.Remove, keys.Prune}
 	case tabBuilds:
@@ -134,7 +142,7 @@ func (k tabKeyMap) actions() []key.Binding {
 	case tabLogs:
 		return []key.Binding{openLogKey}
 	case tabProjects:
-		return []key.Binding{projectUpKey, projectDownKey, projectBuildKey, projectFileKey}
+		return []key.Binding{projectUpKey, projectStartKey, projectStopKey, projectRestartKey, projectLogsKey, projectDownKey, projectBuildKey, projectFileKey}
 	}
 	return nil
 }
@@ -146,7 +154,7 @@ func (k tabKeyMap) ShortHelp() []key.Binding {
 	case tabContainers:
 		b = append(b, keys.Logs, keys.Inspect, keys.Stats, keys.Exec, keys.Start, keys.Stop, keys.Remove)
 	case tabImages:
-		b = append(b, pullShortKey, buildShortKey, loginShortKey, logoutShortKey, keys.Inspect, keys.Remove)
+		b = append(b, pullShortKey, keys.Push, keys.Tag, buildShortKey, loginShortKey, logoutShortKey, keys.Inspect, keys.Remove)
 	case tabVolumes, tabNetworks:
 		b = append(b, keys.Inspect, keys.Remove, keys.Prune, keys.CopyID, keys.Sort)
 	case tabBuilds:
@@ -154,7 +162,7 @@ func (k tabKeyMap) ShortHelp() []key.Binding {
 	case tabLogs:
 		b = append(b, openLogKey, keys.Mark, keys.Sort, keys.Refresh)
 	case tabProjects:
-		b = append(b, projectUpKey, projectDownKey, projectBuildKey, projectFileKey, keys.Refresh)
+		b = append(b, projectUpKey, projectStartKey, projectStopKey, projectRestartKey, projectLogsKey, projectDownKey, projectBuildKey, projectFileKey, keys.Refresh)
 	}
 	return append(b, keys.Help, keys.Quit)
 }

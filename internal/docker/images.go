@@ -5,7 +5,9 @@ package docker
 
 import (
 	"context"
+	"errors"
 	"net/url"
+	"strings"
 )
 
 // Image is the summary returned by the image list endpoint.
@@ -46,4 +48,22 @@ func (c *Client) RemoveImage(ctx context.Context, id string, force bool) error {
 		q.Set("force", "1")
 	}
 	return c.delete(ctx, "/images/"+url.PathEscape(id), q)
+}
+
+// TagImage tags an image with target repository and tag (e.g. "myrepo/myimage:v1.0").
+func (c *Client) TagImage(ctx context.Context, idOrName, target string) error {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return errors.New("missing target tag")
+	}
+	repo, tag := SplitReference(target)
+	if repo == "" {
+		return errors.New("missing repository in target tag")
+	}
+	q := url.Values{}
+	q.Set("repo", repo)
+	if tag != "" {
+		q.Set("tag", tag)
+	}
+	return c.post(ctx, "/images/"+url.PathEscape(idOrName)+"/tag", q)
 }

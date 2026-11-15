@@ -170,9 +170,12 @@ space-separated terms (AND search), exact phrases in quotes, negation with `!` o
 
 The Projects tab (7) discovers projects on the selected daemon. Operations need
 Compose files on this machine; `f` opens a local file with an integrated file browser
-and path autocompletion when daemon paths are unavailable. Escape keeps an operation
-running; `u` reopens its output and `x` cancels it. `down` preserves volumes and
-retains the project in the current session and across restarts so it can be started
+and path autocompletion when daemon paths are unavailable. `u` or Enter brings up
+the project (`up`), `s` starts existing containers (`start`), `S` stops them without
+removing (`stop`), `R` restarts them (`restart`), `L` streams live project logs (`logs`),
+`b` rebuilds (`up --build`), and `x` brings the project down (`down`). Escape keeps
+an operation running; `u` reopens its output and `x` cancels it. `down` preserves volumes
+and retains the project in the current session and across restarts so it can be started
 again. Compose requires the Docker CLI plugin.
 
 List filters, sorting and stopped-container visibility are saved automatically
@@ -186,8 +189,9 @@ message for malformed files. No registry credentials are stored in this file.
 Private pulls reuse `auths`, `credsStore` and registry-specific `credHelpers`
 from Docker's `config.json` (`DOCKER_CONFIG` is honored), plus credentials
 provided through `DOCKER_AUTH_CONFIG`. Docker Hub aliases resolve to Docker's
-standard credential key. In Images, `ctrl+l` opens login and `ctrl+o` opens
-logout. Enter a registry hostname (and optional port), username, and password
+standard credential key. In Images, `u` pulls an image, `p` pushes an image with live
+layer progress, `t` tags an image with a new target repository and tag, `ctrl+l` opens login
+and `ctrl+o` opens logout. Enter a registry hostname (and optional port), username, and password
 or access token. Login/logout use the Docker CLI and its configured credential
 store, as described in [Docker's login documentation](https://docs.docker.com/reference/cli/docker/login/).
 Passwords are masked, passed only through stdin, and excluded from status,

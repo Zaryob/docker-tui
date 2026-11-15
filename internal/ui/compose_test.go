@@ -98,3 +98,31 @@ func TestOpenedComposeSourceSurvivesDaemonRefresh(t *testing.T) {
 		t.Fatal("daemon labels replaced the explicitly opened local source")
 	}
 }
+
+func TestComposeServiceOperations(t *testing.T) {
+	a := newTestApp(t, http.NotFoundHandler())
+	p := localProject(t)
+	a.projects[p.Name] = p
+	a.mergeProjects([]buildx.Project{p}, nil)
+	a.active = int(tabProjects)
+
+	for _, k := range []struct {
+		key    string
+		action string
+	}{
+		{"s", "start"},
+		{"S", "stop"},
+		{"R", "restart"},
+		{"L", "logs"},
+	} {
+		cmd := a.projectKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k.key)})
+		if cmd == nil || a.compose == nil {
+			t.Fatalf("expected operation for %s", k.key)
+		}
+		if !strings.Contains(a.compose.name, k.action) {
+			t.Fatalf("expected %s in %s", k.action, a.compose.name)
+		}
+		a.compose = nil
+		a.pane = nil
+	}
+}

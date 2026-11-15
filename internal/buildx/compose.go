@@ -111,6 +111,14 @@ func (c *CLI) Compose(ctx context.Context, p Project, action string) (io.ReadClo
 		args = append(args, "up", "--detach", "--build")
 	case "down":
 		args = append(args, "down")
+	case "start":
+		args = append(args, "start")
+	case "stop":
+		args = append(args, "stop")
+	case "restart":
+		args = append(args, "restart")
+	case "logs":
+		args = append(args, "logs", "--follow", "--tail", "100")
 	default:
 		return nil, fmt.Errorf("unknown Compose operation %q", action)
 	}

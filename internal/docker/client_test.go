@@ -549,3 +549,50 @@ func TestPrune(t *testing.T) {
 		t.Errorf("report = %+v", r)
 	}
 }
+
+func TestTagImage(t *testing.T) {
+	var requestedPath, requestedRepo, requestedTag string
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestedPath = r.URL.Path
+		requestedRepo = r.URL.Query().Get("repo")
+		requestedTag = r.URL.Query().Get("tag")
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	err := c.TagImage(context.Background(), "img123", "myuser/myrepo:v2.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if requestedPath != "/images/img123/tag" || requestedRepo != "myuser/myrepo" || requestedTag != "v2.0" {
+		t.Errorf("got path=%s, repo=%s, tag=%s", requestedPath, requestedRepo, requestedTag)
+	}
+
+	if err := c.TagImage(context.Background(), "img123", ""); err == nil {
+		t.Error("expected error on empty target tag")
+	}
+}
+
+func TestPushImage(t *testing.T) {
+	var requestedPath, requestedTag string
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestedPath = r.URL.Path
+		requestedTag = r.URL.Query().Get("tag")
+		writeJSON(w, PullProgress{Status: "Pushing", Progress: "50%"})
+	}))
+
+	s, err := c.PushImage(context.Background(), "myuser/myrepo:v1.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if requestedPath != "/images/myuser/myrepo/push" || requestedTag != "v1.0" {
+		t.Errorf("got path=%s, tag=%s", requestedPath, requestedTag)
+	}
+	p, err := s.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Status != "Pushing" {
+		t.Errorf("unexpected progress %+v", p)
+	}
+}

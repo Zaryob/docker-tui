@@ -26,7 +26,7 @@ func composeFixture(t *testing.T) Project {
 
 func TestComposeCommandsUseSelectedContext(t *testing.T) {
 	p := composeFixture(t)
-	for _, action := range []string{"up", "rebuild", "down"} {
+	for _, action := range []string{"up", "rebuild", "down", "start", "stop", "restart", "logs"} {
 		t.Run(action, func(t *testing.T) {
 			var args []string
 			c := &CLI{Context: "remote", Host: "tcp://wrong:2375", Command: func(ctx context.Context, argv ...string) (*exec.Cmd, error) {
@@ -50,6 +50,18 @@ func TestComposeCommandsUseSelectedContext(t *testing.T) {
 				t.Fatal(cmdline)
 			}
 			if action == "down" && !strings.HasSuffix(cmdline, " down") {
+				t.Fatal(cmdline)
+			}
+			if action == "start" && !strings.HasSuffix(cmdline, " start") {
+				t.Fatal(cmdline)
+			}
+			if action == "stop" && !strings.HasSuffix(cmdline, " stop") {
+				t.Fatal(cmdline)
+			}
+			if action == "restart" && !strings.HasSuffix(cmdline, " restart") {
+				t.Fatal(cmdline)
+			}
+			if action == "logs" && !strings.HasSuffix(cmdline, "logs --follow --tail 100") {
 				t.Fatal(cmdline)
 			}
 		})

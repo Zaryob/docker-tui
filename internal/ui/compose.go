@@ -99,7 +99,7 @@ func (a *App) projectKeys(msg tea.KeyMsg) tea.Cmd {
 		a.layout()
 		return textinput.Blink
 	}
-	if a.compose != nil && (msg.String() == "u" || msg.String() == "enter" || msg.String() == "b" || msg.String() == "x") {
+	if a.compose != nil && (msg.String() == "u" || msg.String() == "enter" || msg.String() == "b" || msg.String() == "x" || msg.String() == "s" || msg.String() == "S" || msg.String() == "R" || msg.String() == "L") {
 		a.pane = a.compose
 		a.layout()
 		return nil
@@ -115,6 +115,14 @@ func (a *App) projectKeys(msg tea.KeyMsg) tea.Cmd {
 	switch msg.String() {
 	case "u", "enter":
 		return a.startCompose(p, "up")
+	case "s":
+		return a.startCompose(p, "start")
+	case "S":
+		return a.startCompose(p, "stop")
+	case "R":
+		return a.startCompose(p, "restart")
+	case "L":
+		return a.startCompose(p, "logs")
 	case "b":
 		return a.startCompose(p, "rebuild")
 	case "x":

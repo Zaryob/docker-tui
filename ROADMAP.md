@@ -66,3 +66,10 @@ are separate from the implementation work.
 - Provide an interactive file browser and shell-style path completion with home directory expansion for opening Compose files.
 - Gate: filter parser tests, filebrowser tests, race tests, vet and build.
 
+## v0.12.0 — Image tagging, pushing and Compose service operations
+
+- Support tagging local images with custom repository:tag and pushing images to remote registries with progress feedback.
+- Provide per-service actions in the Compose (Projects) tab: start, stop, restart individual services and view service-specific log streams.
+- Gate: tag/push client tests, modal UI interaction tests, Compose service lifecycle tests, race tests, vet and build.
+
+

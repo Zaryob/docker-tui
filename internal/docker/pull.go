@@ -92,6 +92,42 @@ func (s *PullStream) Next() (PullProgress, error) {
 // Close stops reading the progress, which cancels the pull.
 func (s *PullStream) Close() error { return s.body.Close() }
 
+// PushImage starts pushing an image to a registry, e.g. "myrepo/app:1.2".
+// Canceling ctx or closing the stream stops it.
+func (c *Client) PushImage(ctx context.Context, ref string) (*PullStream, error) {
+	image, tag := SplitReference(ref)
+	if image == "" {
+		return nil, errors.New("no image given")
+	}
+	q := url.Values{}
+	if tag != "" {
+		q.Set("tag", tag)
+	}
+	auth, err := (&registry.Client{}).Credentials(ctx, ref)
+	if err != nil {
+		return nil, err
+	}
+	headers := http.Header{}
+	if h := auth.Header(); h != "" {
+		headers.Set("X-Registry-Auth", h)
+	}
+	resp, err := c.doHeaders(ctx, http.MethodPost, "/images/"+url.PathEscape(image)+"/push", q, nil, "", headers)
+	if err != nil {
+		return nil, pushError(err, auth)
+	}
+	return &PullStream{auth: auth, body: resp.Body, dec: json.NewDecoder(resp.Body)}, nil
+}
+
+func pushError(err error, auth registry.Auth) error {
+	message := auth.Redact(err.Error())
+	lower := strings.ToLower(message)
+	var apiErr *APIError
+	if (errors.As(err, &apiErr) && (apiErr.StatusCode == http.StatusUnauthorized || apiErr.StatusCode == http.StatusForbidden)) || strings.Contains(lower, "unauthorized") || strings.Contains(lower, "access denied") || strings.Contains(lower, "authentication required") || strings.Contains(lower, "no basic auth credentials") {
+		return fmt.Errorf("%s; use ctrl+l in Images to log in, then retry the push", message)
+	}
+	return errors.New(message)
+}
+
 func pullError(err error, auth registry.Auth) error {
 	message := auth.Redact(err.Error())
 	lower := strings.ToLower(message)
