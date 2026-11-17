@@ -57,9 +57,8 @@ func (f *tagForm) setSize(w, h int) {
 func (f *tagForm) close() {}
 
 func (f *tagForm) update(msg tea.Msg) tea.Cmd {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
+	if key, ok := msg.(tea.KeyMsg); ok {
+		switch key.String() {
 		case "esc":
 			return func() tea.Msg { return closePaneMsg{} }
 		case "enter":

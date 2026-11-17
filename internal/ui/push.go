@@ -10,6 +10,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -145,10 +146,6 @@ func (v *pushView) running() bool {
 	return v.ref != "" && !v.done && !v.canceled && v.err == nil
 }
 
-func (v *pushView) succeeded() bool {
-	return v.done && v.err == nil && !v.canceled
-}
-
 func (v *pushView) stop() {
 	if v.cancel != nil {
 		v.cancel()
@@ -156,6 +153,8 @@ func (v *pushView) stop() {
 }
 
 func (v *pushView) capturesInput() bool { return v.ref == "" }
+
+func (v *pushView) keyMap() help.KeyMap { return pushKeys{v} }
 
 func (v *pushView) setSize(w, h int) {
 	v.width, v.height = w, h
@@ -289,9 +288,9 @@ func (v *pushView) view() string {
 		if l.total > 0 {
 			size = format.Size(l.current) + " / " + format.Size(l.total)
 		}
-		b := pullBar(l.current, l.total, pullBarWidth)
+		b := pullBar(l.current, l.total)
 		if v.layerDone(id) {
-			b = pullBar(1, 1, pullBarWidth)
+			b = pullBar(1, 1)
 		}
 		lines = append(lines, fmt.Sprintf("%-12s  %-18s  %s  %s", format.ShortID(id), status, b, size))
 	}

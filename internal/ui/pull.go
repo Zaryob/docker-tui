@@ -278,13 +278,13 @@ func (v *pullView) update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-// pullBar renders a progress bar of width cells for current of total.
-func pullBar(current, total int64, width int) string {
+// pullBar renders a progress bar of pullBarWidth cells for current of total.
+func pullBar(current, total int64) string {
 	if total <= 0 {
-		return strings.Repeat("·", width)
+		return strings.Repeat("·", pullBarWidth)
 	}
-	n := int(min(current, total) * int64(width) / total)
-	return okStyle.Render(strings.Repeat("█", n)) + statusStyle.Render(strings.Repeat("░", width-n))
+	n := int(min(current, total) * int64(pullBarWidth) / total)
+	return okStyle.Render(strings.Repeat("█", n)) + statusStyle.Render(strings.Repeat("░", pullBarWidth-n))
 }
 
 func (v *pullView) view() string {
@@ -316,9 +316,9 @@ func (v *pullView) view() string {
 		if l.total > 0 {
 			size = format.Size(l.current) + " / " + format.Size(l.total)
 		}
-		b := pullBar(l.current, l.total, pullBarWidth)
+		b := pullBar(l.current, l.total)
 		if v.layerDone(id) {
-			b = pullBar(1, 1, pullBarWidth)
+			b = pullBar(1, 1)
 			if v.succeeded() && status == "Download complete" {
 				status = "Pull complete"
 			}
