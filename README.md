@@ -15,8 +15,9 @@ single static binary with no dependency on the Docker SDK.
   time or in bulk
 - Containers of a **compose project** are grouped under a foldable project
   row, like in Docker Desktop; actions on the row apply to the whole project
-- Run Compose project **up**, **down** and **rebuild**, with live progress and
-  cancellation; open local Compose files and retain projects after `down`
+- Run Compose project **up**, **down**, **rebuild**, **start**, **stop** and
+  **restart**, follow project **logs**, with live progress and cancellation;
+  open local Compose files and retain projects after `down`
 - Follow container and build **logs** in real time, search with regex, toggle
   case sensitivity, inspect message details, and copy log lines or IDs
 - Live **stats**: CPU (with history), memory, network and block I/O
@@ -26,6 +27,7 @@ single static binary with no dependency on the Docker SDK.
 - **Copy files** to and from containers, like `docker cp`
 - **Pull** images with live progress per layer, including private registries
   using Docker credential helpers; log in/out from the Images tab
+- **Tag** and **push** images to any registry with live progress per layer
 - **Build** images with BuildKit and browse the **build history** with its
   logs, like the Builds view of Docker Desktop
 - Built-in **terminal** for running containers, like the Exec tab of Docker
@@ -135,7 +137,9 @@ buildx) to be installed.
 | `b`               | In images and builds: build an image, or show the running build |
 | `u`               | In images: pull an image, or show the running pull (`x` cancels) |
 | `ctrl+l` / `ctrl+o` | In Images: registry login / logout |
+| `t` / `p`         | In Images: tag / push an image           |
 | `u` / `enter`, `x`, `b` | In Projects: up, confirm down, rebuild |
+| `s` / `S` / `R` / `L` | In Projects: start, stop, restart, follow logs |
 | `f`               | In Projects: open a local Compose file |
 | `x`               | In the build output: cancel the build (`esc` keeps it running) |
 | `enter`           | In builds: show the logs of the build    |

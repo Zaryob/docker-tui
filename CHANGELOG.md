@@ -5,6 +5,8 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-17
+
 ### Added
 
 - Tag local Docker images with custom repository:tag (`t` on Images tab).
